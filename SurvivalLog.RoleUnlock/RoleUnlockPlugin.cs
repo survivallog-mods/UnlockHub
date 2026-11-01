@@ -28,9 +28,14 @@ namespace SurvivalLog.RoleUnlock;
 ///    解锁仍受各自防御等级门槛约束（不是白送，只是"可解锁"）。
 /// 3) 生存规划互通：清功能类专属天赋 PlayerSelectId（家具位黑名单排除）+ 花瓶配方 325 等级化解锁。
 ///    （2026-10-24 起两线各有独立开关 Plan.ClearPool / Plan.VaseRecipe，默认 true；false=还原官方。）
+/// 4) 交易解锁（2026-11-02 起，首个非角色线功能）：postfix ConsumeActiveShelfStock 删货架快照，
+///    下次打开交易点走 DrawActiveShelf 官方兜底分支全新上架（官方旧版"买完即补"的现行等价路径）。
+///    机制实证见 docs/superpowers/specs/2026-11-01-drone-trade-shelf-refresh-design.md；实现见 TradeShelfRefresher.cs。
 ///
-/// 均为纯内存表编辑（零 Harmony——il2cpp 泛型 List 参数补丁会静默失败），
-/// 幂等：进程内首读值记为原值，重复执行永远按原值推目标态；全部功能有 cfg 开关（关=还原）。
+/// 表线（1~3）保持纯内存表编辑（零 Harmony——il2cpp 泛型 List 参数补丁会静默失败）；
+/// 交易解锁（4）是本 mod 首个 Harmony 补丁线（套件有 EndlessGuard/CabinetEverywhere 等成熟先例；
+/// 逐类挂载+异常隔离，postfix 只读 int 参数避开泛型坑）。两线正交，互不依赖。
+/// 幂等：表线进程内首读值记为原值，重复执行永远按原值推目标态；全部功能有 cfg 开关（关=还原）。
 ///
 /// General.Enabled 总开关（2026-10-24，ModCenter 启停位）：false=全功能目标态切"还原官方"
 /// （复用各 Apply 的现役还原路径：Params3 回原白名单/DefenseLv 回分列/Talent 回白名单/
@@ -54,6 +59,8 @@ public sealed class RoleUnlockPlugin : BasePlugin
     internal static ConfigEntry<bool> ShareDefenseRecipes;
     internal static ConfigEntry<bool> ClearPool;
     internal static ConfigEntry<bool> VaseRecipe;
+    // 交易解锁（2026-11-02，本 mod 首个非角色线功能）：postfix 删货架快照，见 TradeShelfRefresher.cs
+    internal static ConfigEntry<bool> UnlockTrade;
     internal static volatile bool Rerun = true;
 
     public override void Load()
@@ -71,6 +78,8 @@ public sealed class RoleUnlockPlugin : BasePlugin
             "生存规划全角色：每日规划商店里，别的角色的专属规划（种花、做菜、存粮、搬东西这些共 46 项）也会刷出来，谁都能买（已买的不退）。注意：各角色的房屋扩建类规划不会互通。false=改回游戏原样（只能刷到自己的）。");
         VaseRecipe = Config.Bind("Plan", "VaseRecipe", true,
             "花瓶全角色：制作等级到 1 级，谁都能在工作台学会做花瓶（原本只有大学生的剧情会送）。false=改回游戏原样。");
+        UnlockTrade = Config.Bind("Trade", "UnlockTrade", true,
+            "交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动重新上架全新货物（官方旧版行为；官方现行是买掉后要等第二天才补货）。false=改回游戏原样。");
 
         System.EventHandler reload = (object s, System.EventArgs e) => { Rerun = true; };
         Enabled.SettingChanged += reload;
@@ -79,17 +88,28 @@ public sealed class RoleUnlockPlugin : BasePlugin
         ShareDefenseRecipes.SettingChanged += reload;
         ClearPool.SettingChanged += reload;
         VaseRecipe.SettingChanged += reload;
+        UnlockTrade.SettingChanged += reload;
 
         // General.Enabled=false：不启 Ticker、零日志零改写（表值本会话从未改过；
         // 运行中关闭由 RoleTicker 按全功能还原目标态处理）
         if (!Enabled.Value) return;
+
+        // 交易解锁：逐类挂载+异常隔离（EndlessGuard 2026-10-25 事故教训同款：PatchAll 整包挂载时
+        // 单个补丁 IL 编译错会炸掉整个 Load()。逐类隔离后坏一个不连坐，表线 Ticker 照常工作）
+        var harmony = new HarmonyLib.Harmony(Guid);
+        foreach (var t in typeof(RoleUnlockPlugin).Assembly.GetTypes())
+        {
+            if (!t.IsClass || !t.IsDefined(typeof(HarmonyLib.HarmonyPatch), false)) continue;
+            try { harmony.CreateClassProcessor(t).Patch(); }
+            catch (Exception e) { Log.LogWarning("patch 挂载失败 " + t.Name + ": " + e.Message); }
+        }
 
         if (!ClassInjector.IsTypeRegisteredInIl2Cpp<RoleTicker>())
             ClassInjector.RegisterTypeInIl2Cpp<RoleTicker>();
         var go = new GameObject("RoleUnlock.Ticker");
         Object.DontDestroyOnLoad(go);
         go.AddComponent<RoleTicker>();
-        Log.LogInfo("[RoleUnlock] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通（纯表编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
+        Log.LogInfo("[RoleUnlock] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
         SurvivalLog.ModShared.WelcomeTip.Install(Log);
     }
 }

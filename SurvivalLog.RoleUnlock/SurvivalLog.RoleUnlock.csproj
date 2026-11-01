@@ -32,6 +32,10 @@
       <HintPath>E:\SteamLibrary\steamapps\common\Survival Log\BepInEx\core\Il2CppInterop.Runtime.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>E:/SteamLibrary/steamapps/common/Survival Log/BepInEx/core/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Il2Cppmscorlib">
       <HintPath>E:\SteamLibrary\steamapps\common\Survival Log\BepInEx\interop\Il2Cppmscorlib.dll</HintPath>
       <Private>false</Private>
