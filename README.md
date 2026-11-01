@@ -1,38 +1,50 @@
-# 角色专属解锁 RoleUnlock（Survival Log MOD）
+# 解锁中心 UnlockHub（Survival Log MOD）
 
 > 作者 Night · 抖音 166660371 · 免费分享 · 不改存档 / 不改游戏文件
 > 版本随套件统一管理；适配游戏版本以仓库兼容说明为准。
+> v1.8.0 起由「角色专属解锁 RoleUnlock」更名而来（功能全保留，新增交易解锁；老玩家配置回到默认值，无损）。
 
 ## 一、这是干什么的
 
-原版有不少内容锁角色：爬山虎种子只有女大学生能发现、花瓶配方只有大学生剧情送、部分生存规划只刷给对应角色，换个角色就要错过一截内容。本 mod 把这些角色限制放开，让任何角色都能玩到全套；默认全部开启，每一项都可以单独关掉还原。
+把游戏里各类官方限制逐项放开的通用解锁合集。现有两条线：**角色线**——原版不少内容锁角色（爬山虎种子只有女大学生能发现、花瓶配方只有大学生剧情送、部分生存规划只刷给对应角色），本 mod 把这些限制放开让任何角色都能玩到全套；**交易线**——无人机交易买完货后货架自动重新上架（恢复官方旧版行为，官方现行是买掉后要等第二天才补货）。每项都可单独关掉还原。
 
 ## 二、功能清单
+
+### 角色线（原 RoleUnlock 全量）
 
 - 藤蔓全角色：任何角色收获作物时都可能发现爬山虎种子，能种藤蔓、安装到家具、获得藤蔓护盾（发现种子的防御等级门槛保留官方规则）
 - 花种子全角色：任何角色收获作物时都可能发现花朵种子、能种花插瓶（原本也只有大学生会）
 - 防御配方互通：燃烧瓶、电网这类防线道具配方全角色可解锁，各防御等级门槛照旧不是白送（当前游戏版本官方已自行统一，本开关留作保险，未来版本若分列则继续兜底）
 - 生存规划互通：46 项功能类专属规划（种花、做菜、存粮、搬东西等）全角色可刷可买；已购规划不会清退；各角色的房屋扩建/家具位类规划绑定各自地图，不通融
 - 花瓶配方等级化解锁：制作等级到 1 级全角色都能在工作台学会做花瓶（原本只有大学生的剧情会送）
-- 全部功能都有开关，关=还原官方行为；不改任何概率与数值平衡
+
+### 交易线（v1.8.0 新增）
+
+- 交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动**重新上架全新货物、数量全满**（官方旧版"买完即补"行为；官方现行是每天只随机补一小部分，重复买同一种货要等第二天）。休闲模式的稀有货架不受影响（保持官方稀有度限制）
+
+### 通用
+
+- 全部功能都有开关，关=还原官方行为；不改任何概率与数值平衡（交易解锁只改补货时机，不伪造货架内容——重抽由游戏官方逻辑完成）
 
 ## 三、安全与还原
 
-- 不改存档 / 不改游戏文件 / 删 dll 即还原
-- 全部改写在内存配置表上完成，改动后自动重写/还原，无需重启
+- 不改游戏文件 / 删 dll 即还原
+- 角色线全部改写在内存配置表上完成，改动后自动重写/还原，无需重启
+- 交易线对存档的全部改动 = 删除一个游戏官方的货架快照键（合法存档状态，旧档本来就没有该键）；补货/重抽 100% 走游戏官方代码路径
 - 已购/已学的规划与配方属于存档侧数据：关闭开关或卸载后这些保留不退，只影响之后的抽取与解锁
 
 ## 四、安装与卸载
 
 **前置**：Steam 正版《生存日志》（AppID 4164790）+ BepInEx 6（IL2CPP）注入链。
 - **Full 完整包（推荐新玩家）**：解压到游戏根目录（Steam 库 `steamapps\common\Survival Log`），自带 BepInEx 6（IL2CPP）基座，装完即用；
-- **PluginOnly 纯插件包**：已装 BepInEx 6 的玩家，把 `SurvivalLog.RoleUnlock.dll` 放进 `<游戏目录>\BepInEx\plugins\`。
+- **PluginOnly 纯插件包**：已装 BepInEx 6 的玩家，把 `SurvivalLog.UnlockHub.dll` 放进 `<游戏目录>\BepInEx\plugins\`。
+- **从旧版 RoleUnlock 升级**：手动删掉旧的 `BepInEx\plugins\SurvivalLog.RoleUnlock.dll` 再放入新 dll（文件名已随更名变化）；旧配置文件 `com.local.survivallog.roleunlock.cfg` 留着无害，可删。
 
-**卸载** = 删掉该 dll（Full 包玩家要彻底清基座：再删 `BepInEx\` 目录、`winhttp.dll`、`dotnet\` 目录；存档不受影响），游戏回到原版角色限制（已学到的规划/配方保留在存档里）。游戏更新后失效属正常，等套件适配新版即可；本 mod 不改任何游戏文件。
+**卸载** = 删掉该 dll（Full 包玩家要彻底清基座：再删 `BepInEx\` 目录、`winhttp.dll`、`dotnet\` 目录；存档不受影响），游戏回到官方限制（已学到的规划/配方保留在存档里）。游戏更新后失效属正常，等套件适配新版即可；本 mod 不改任何游戏文件。
 
 ## 五、配置说明
 
-配置文件：`BepInEx\config\com.local.survivallog.roleunlock.cfg`（改完自动重写或还原，无需重启）。用记事本可改。
+配置文件：`BepInEx\config\com.local.survivallog.unlockhub.cfg`（改完自动重写或还原，无需重启）。用记事本可改。
 
 | 节.键 | 默认 | 说明（人话） |
 |---|---|---|
@@ -42,10 +54,11 @@
 | Defense.ShareDefenseRecipes | true | 防御配方互通：让所有角色都能做燃烧瓶、电网这类防线道具（当前游戏版本已自带此效果，此项留作保险，不用管）。false=改回游戏原样。 |
 | Plan.ClearPool | true | 生存规划全角色：每日规划商店里，别的角色的专属规划（种花、做菜、存粮、搬东西这些共 46 项）也会刷出来，谁都能买（已买的不退）。注意：各角色的房屋扩建类规划不会互通。false=改回游戏原样（只能刷到自己的）。 |
 | Plan.VaseRecipe | true | 花瓶全角色：制作等级到 1 级，谁都能在工作台学会做花瓶（原本只有大学生的剧情会送）。false=改回游戏原样。 |
+| Trade.UnlockTrade | true | 交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动重新上架全新货物（官方旧版行为；官方现行是买掉后要等第二天才补货）。false=改回游戏原样。 |
 
 ## 六、English
 
-**Role Unlock** — Removes role locks: vine seeds, flower seeds, cross-role life plans and the vase recipe become available to every character.
+**Unlock Hub** — Removes official restrictions: role-locked content (vine seeds, flower seeds, cross-role life plans, vase recipe) for every character, plus instant drone-trade shelf restock.
 
 **Features**
 - Any character can discover vine (ivy) seeds when harvesting, plant vines and get the vine shield; the official defense-level gate for seed discovery is kept
@@ -53,13 +66,14 @@
 - Defense recipes (Molotovs, electric nets, etc.) become unlockable for all characters at their normal defense levels (the current game version already unifies this officially; kept as a safety net)
 - 46 function-type exclusive life plans can appear in the daily plan shop and be bought by any character; purchased plans are never removed; room-expansion / furniture-slot plans stay role-bound
 - The vase recipe becomes learnable at crafting level 1 (originally only given by one character's story)
+- **Trade Unlock (v1.8.0)**: after each drone-trade purchase the trading point's shelf restocks with fresh goods the next time you open it (the old official behavior; the current official build only partially restocks once per day). Casual-mode rare shelves are untouched
 - Every feature has its own switch; off = vanilla behavior
 
 **Requirements / Install / Uninstall**
-Survival Log (Steam AppID 4164790) + BepInEx 6 IL2CPP. Install the Full package (bundled BepInEx 6 base — extract into the game root, `steamapps\common\Survival Log`) or the PluginOnly package (drop `SurvivalLog.RoleUnlock.dll` into `BepInEx\plugins\` if BepInEx 6 is already installed). Uninstall = delete the DLL; the game returns to vanilla role restrictions (plans and recipes you already own stay in your save).
+Survival Log (Steam AppID 4164790) + BepInEx 6 IL2CPP. Install the Full package (bundled BepInEx 6 base — extract into the game root, `steamapps\common\Survival Log`) or the PluginOnly package (drop `SurvivalLog.UnlockHub.dll` into `BepInEx\plugins\` if BepInEx 6 is already installed). Upgrading from the old RoleUnlock build: delete the old `SurvivalLog.RoleUnlock.dll` first. Uninstall = delete the DLL; the game returns to vanilla restrictions (plans and recipes you already own stay in your save).
 
 **Configuration**
-Config file: `BepInEx\config\com.local.survivallog.roleunlock.cfg`. Five independent switches (vine, flower seeds, defense recipes, plan sharing, vase recipe) plus a master switch; changes rewrite or restore automatically without a restart.
+Config file: `BepInEx\config\com.local.survivallog.unlockhub.cfg`. Six independent switches (vine, flower seeds, defense recipes, plan sharing, vase recipe, trade unlock) plus a master switch; changes rewrite or restore automatically without a restart.
 
 **Credits**
 By Night (Douyin 166660371). Free for personal use. Do NOT re-upload or redistribute anywhere without permission.

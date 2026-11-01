@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using HarmonyLib;
 
-namespace SurvivalLog.RoleUnlock;
+namespace SurvivalLog.UnlockHub;
 
 /// <summary>
 /// 交易解锁（姿势1）：postfix 挂 Reducer_Web_TradeUI.ConsumeActiveShelfStock（private static，
@@ -36,8 +36,8 @@ internal static class TradeShelfRefresher
         try
         {
             // 开关门控：cfg 未初始化(null)或任一开关关 = 不删，回官方行为
-            if (RoleUnlockPlugin.Enabled == null || !RoleUnlockPlugin.Enabled.Value) return;
-            if (RoleUnlockPlugin.UnlockTrade == null || !RoleUnlockPlugin.UnlockTrade.Value) return;
+            if (UnlockHubPlugin.Enabled == null || !UnlockHubPlugin.Enabled.Value) return;
+            if (UnlockHubPlugin.UnlockTrade == null || !UnlockHubPlugin.UnlockTrade.Value) return;
 
             if (!GameCore.HotUpdate.BaseSingleton<GameCore.HotUpdate.GameSaveManager>.IsInstanceCreated) return;
             var save = GameCore.HotUpdate.BaseSingleton<GameCore.HotUpdate.GameSaveManager>.Instance?.GetGameSaveData();
@@ -49,13 +49,13 @@ internal static class TradeShelfRefresher
             if (!_loggedOnce)
             {
                 _loggedOnce = true;
-                RoleUnlockPlugin.Log.LogInfo("[TradeUnlock] 首次拦截确认：货架 " + __0 + " 快照已删，下次打开交易点将全新上架（后续静默）");
+                UnlockHubPlugin.Log.LogInfo("[TradeUnlock] 首次拦截确认：货架 " + __0 + " 快照已删，下次打开交易点将全新上架（后续静默）");
             }
         }
         catch (Exception e)
         {
             // 放弃本轮删除：官方扣减已由原函数完成，行为退化=官方，无害
-            RoleUnlockPlugin.Log.LogWarning("[TradeUnlock] 删快照异常（已跳过，官方行为不受影响）: " + e.Message);
+            UnlockHubPlugin.Log.LogWarning("[TradeUnlock] 删快照异常（已跳过，官方行为不受影响）: " + e.Message);
         }
     }
 }

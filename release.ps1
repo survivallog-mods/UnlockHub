@@ -64,13 +64,14 @@ if (Test-Path $srcCfg) {
     $txt = $txt -replace '(?m)^(FridgeHeightMult\s*=\s).*$', '${1}1.5'
     $txt = $txt -replace '(?m)^(VehicleWidthMult\s*=\s).*$',  '${1}1.5'
     $txt = $txt -replace '(?m)^(VehicleHeightMult\s*=\s).*$', '${1}1.5'
-    # RoleUnlock: all boolean keys normalized to release default true (final six keys)
+    # UnlockHub (原 RoleUnlock): all boolean keys normalized to release default true (final seven keys)
     $txt = $txt -replace '(?m)^(Enabled\s*=\s).*$',              '${1}true'
     $txt = $txt -replace '(?m)^(UnlockVine\s*=\s).*$',           '${1}true'
     $txt = $txt -replace '(?m)^(UnlockFlowerSeeds\s*=\s).*$',    '${1}true'
     $txt = $txt -replace '(?m)^(ShareDefenseRecipes\s*=\s).*$',  '${1}true'
     $txt = $txt -replace '(?m)^(Clearpool\s*=\s).*$',            '${1}true'
     $txt = $txt -replace '(?m)^(VaseRecipe\s*=\s).*$',           '${1}true'
+    $txt = $txt -replace '(?m)^(UnlockTrade\s*=\s).*$',          '${1}true'
     $txt = $txt -replace '(?m)^(KeepMult\s*=\s).*$',   '${1}2'
     $txt = $txt -replace '(?m)^(Verbose\s*=\s).*$',    '${1}false'
     $txt = $txt -replace '(?m)^(DiagOnOpen\s*=\s).*$', '${1}false'

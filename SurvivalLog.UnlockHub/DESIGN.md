@@ -166,3 +166,22 @@ cfg 文件名 `com.local.survivallog.roleunlock.cfg`（Guid `com.local.survivall
   - 两开关默认 true（升级用户行为不变）；cfg 键首跑自动生成，SettingChanged 触发 Rerun 热重写。
 - **2026-10-24（作者定案）：cfg 说明改人话版；删 Debug.ListOnReady/Verbose 两调试开关**（首轮核对清单改为固定输出，46/77 基线自检不丢）；UnlockFlowerSeeds 默认 true；SkipDefenseGate 移除（藤蔓种子防御门槛永远保留官方规则）。
 - 版本与发版（2026-10-28 起，v2 迁移后）：版本号单源=本仓 csproj <Version>（作者定义）；单 mod 发版=本仓 .\release.ps1；ModShared 改动源=中枢仓 suite\ModShared（push_modshared 推送）。
+
+## 9. 交易解锁（2026-11-02，v1.8.0；本 mod 首个非角色线功能 + 首个 Harmony 补丁线）
+
+设计全文与反汇编取证：`docs/superpowers/specs/2026-11-01-drone-trade-shelf-refresh-design.md`（含实施计划）。
+
+- **行为**：无人机交易每次买完，该交易点货架下次打开自动重新上架全新货物（官方旧版"买完即补"
+  的现行等价路径；官方现行是每日按营地铁随机补 3~5 种）。知情语义：重开=换新随机货架，非同款回满。
+- **机制**（v26157732 dump 实证）：购买走 `Reducer_Web_TradeUI.DealCore → ConsumeActiveShelfStock`
+  （private static，DealCore 内直接 E8 调用）；补货/重抽只在 `ResolveActiveShelf`（开界面/查填充度），
+  快照缺失 → `DrawActiveShelf` 官方兜底分支全量重抽。本 mod postfix 挂 Consume，交易瞬间删
+  `SaveChildData.ActiveShelfStock[货架id]`（访问链 `BaseSingleton<GameSaveManager>.Instance
+  .GetGameSaveData().CurSave.ActiveShelfStock.Remove(id)`，均在 GameCore.HotUpdate 命名空间）。
+- **纪律**：postfix 只读 `__0`(int) 避开泛型补丁坑；逐类挂载+异常隔离（EndlessGuard 2026-10-25 军律）；
+  全程 try/catch，异常即放弃本轮删除（最坏退化=官方行为）；`ActiveShelfRestockDay` 不动（重抽分支自写今天）。
+- **spike 实证（2026-11-02）**：LogOutput.log 1503 行 `[TradeUnlock] 首次拦截确认：货架 920 快照已删`，
+  无挂载失败，交易结算正常——detour 触发链验证通过。
+- **不覆盖**：休闲模式稀有货架（CasualCampShelf 独立消耗路径，稀有限制保留）。
+- **更名**：v1.8.0 起 RoleUnlock → **UnlockHub（解锁中心）**，GUID `com.local.survivallog.unlockhub`，
+  cfg `com.local.survivallog.unlockhub.cfg`；ModCenter 注册表（Meta.cs / RepoDecision.RepoKeys）连动更新。
