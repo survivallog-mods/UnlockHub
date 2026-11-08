@@ -101,6 +101,8 @@
 | ShareDefenseRecipes | true | 防御配方互通（本版官方已统一，空转留作保险） |
 | Plan.ClearPool | true | 生存规划全角色：46 项功能类专属规划谁都能刷能买（已购不退；房屋扩建类不通融）；false=还原 |
 | Plan.VaseRecipe | true | 花瓶全角色：制作等级 1 谁都能学做花瓶（原生仅大学生剧情送）；false=还原 |
+| Trade.UnlockTrade | true | 交易解锁：无人机货架买完即刷（官方旧版行为）；false=还原（见 §9） |
+| Explore.UnlockDailyOnce | true | 探索解锁：每日一次探索点（科技公司）不限次；false=还原（见 §10） |
 
 注：SkipDefenseGate（清零藤蔓种子防御门槛）已于 2026-10-24 按作者决定移除——门槛保留官方规则；
 UnlockFlowerSeeds 默认值同日改 true（作者定案：其他角色默认可发现花朵种子）。
@@ -185,3 +187,30 @@ cfg 文件名 `com.local.survivallog.roleunlock.cfg`（Guid `com.local.survivall
 - **不覆盖**：休闲模式稀有货架（CasualCampShelf 独立消耗路径，稀有限制保留）。
 - **更名**：v1.8.0 起 RoleUnlock → **UnlockHub（解锁中心）**，GUID `com.local.survivallog.unlockhub`，
   cfg `com.local.survivallog.unlockhub.cfg`；ModCenter 注册表（Meta.cs / RepoDecision.RepoKeys）连动更新。
+
+## 10. 探索解锁——每日一次探索点不限次（2026-11-08，v1.9.0）
+
+- **行为**：地图上每天只能去一次的探索点（当前唯一成员=科技公司，Config_MapPoint 表 ID 1003）
+  改为每天不限次前往。当次探索的其余规则（消耗、暴露值等）照旧不动。
+- **机制**（build 26454866 反汇编实证，2026-11-08）：
+  - 限制源=全局配置表条目 `Explore_DailyOnceMaps`：`Params3`（string 0x20）为 ';'
+    分隔的受限地图ID列表；条目缺失时游戏回落内置默认常量 "1003"（`ExploreManager.DailyOnceDefaultMaps`）。
+  - 判定总闸 `ExploreManager.IsDailyOnceMap(mapConfigId)`（public static，RVA 0x2723B50）：
+    mapConfigId≤0→false；TryGet 条目成功取 Params3 / 失败取默认串；
+    **IsNullOrEmpty → return false（@0x2723c30–0x2723c37，"空=无任何地图受限"）**；
+    否则按 ';' 分割逐段 int.TryParse 与 mapConfigId 比对，命中→true。
+  - 三条消费路径全部以 IsDailyOnceMap 为第一道判定，清空后全部短路放行：
+    ① 进入闸门 `OnCheckAndGo`→`IsDailyOnceUsedToday`（0x2723CD0，首 call IsDailyOnceMap @0x2723cfa；
+    false→放行，不走"今日已去过"拦截分支）；
+    ② 进入后标记 `MarkDailyOnceEntered`（0x2723DA0，首 call @0x2723dca；false→跳过，
+    "已去过"计数器 `explore.dailyonce.<mapId>` 不写入——零存档副作用）；
+    ③ 跨日重置 `PostDailyOnceForMap`（0x27257E0，内部两处 call @0x2725970/0x27259ae）。
+  - 旁路排查：`GameKey.GlobalSetting_Explore_DailyOnceMaps`（静态缓存读取器 0x263A520）
+    全镜像无 E8 调用方（仅方法指针表登记）——不存在绕开表编辑的第二条判定路径。
+  - UI 侧"每日一次"角标数据 `Ac_ExploreMap_Open.DailyOnceByMapPoint` 经 `TradeMapStatusRelay`
+    中转（生产方 PostExploreDailyOnce 无直接调用方，未全追；仅显示层，不影响进入判定）。
+- **实现**：复用藤蔓线 `ApplyAllowList`（清空=解除限制；false=按进程内首读快照还原原列表，
+  参数 noun="列表"）；cfg `Explore.UnlockDailyOnce`（默认 true）。
+- **验证清单（装机）**：首跑日志 `GS Explore_DailyOnceMaps.Params3 每日一次地图列表 "1003" -> ""`；
+  同日两次前往科技公司均正常进入；关开关后自动还原次日恢复每日一次；mod 开启期间存档无
+  explore.dailyonce.1003 计数残留。

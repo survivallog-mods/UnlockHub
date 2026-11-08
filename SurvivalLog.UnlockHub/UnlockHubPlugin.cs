@@ -32,10 +32,16 @@ namespace SurvivalLog.UnlockHub;
 /// 4) 交易解锁（2026-11-02 起，首个非角色线功能）：postfix ConsumeActiveShelfStock 删货架快照，
 ///    下次打开交易点走 DrawActiveShelf 官方兜底分支全新上架（官方旧版"买完即补"的现行等价路径）。
 ///    机制实证见 docs/superpowers/specs/2026-11-01-drone-trade-shelf-refresh-design.md；实现见 TradeShelfRefresher.cs。
+/// 5) 探索解锁（2026-11-08 起）：Config_GlobalSetting["Explore_DailyOnceMaps"].Params3 是"每日一次"
+///    探索点的地图ID列表（';'分隔；条目缺失时游戏内置默认 "1003"=科技公司）。ExploreManager.IsDailyOnceMap
+///    直读该条目且"空=无任何地图受限"（IsNullOrEmpty 早退，2026-11-05 build 26454866 反汇编实证）；
+///    进入闸门 OnCheckAndGo→IsDailyOnceUsedToday / 已去标记 MarkDailyOnceEntered / 跨日重置
+///    PostDailyOnceForMap 三条消费路径全部以它为第一道判定。清空 Params3 → 每日一次探索点不限次
+///    （连"已去过"计数器都不再写，零存档副作用）。官方未来把更多地图加入该列表也一并放开。
 ///
-/// 表线（1~3）保持纯内存表编辑（零 Harmony——il2cpp 泛型 List 参数补丁会静默失败）；
+/// 表线（1~3、5）保持纯内存表编辑（零 Harmony——il2cpp 泛型 List 参数补丁会静默失败）；
 /// 交易解锁（4）是本 mod 首个 Harmony 补丁线（套件有 EndlessGuard/CabinetEverywhere 等成熟先例；
-/// 逐类挂载+异常隔离，postfix 只读 int 参数避开泛型坑）。两线正交，互不依赖。
+/// 逐类挂载+异常隔离，postfix 只读 int 参数避开泛型坑）。各线正交，互不依赖。
 /// 幂等：表线进程内首读值记为原值，重复执行永远按原值推目标态；全部功能有 cfg 开关（关=还原）。
 ///
 /// General.Enabled 总开关（2026-10-24，ModCenter 启停位）：false=全功能目标态切"还原官方"
@@ -48,7 +54,7 @@ public sealed class UnlockHubPlugin : BasePlugin
     public const string Guid = "com.local.survivallog.unlockhub";
     public const string Name = "UnlockHub";
     // 跟随套件 version.json，发版时与套件同步（版本号由作者定义）
-    public const string Version = "1.8.0";
+    public const string Version = "1.9.0";
 
     internal static ManualLogSource Log;
 
@@ -62,6 +68,8 @@ public sealed class UnlockHubPlugin : BasePlugin
     internal static ConfigEntry<bool> VaseRecipe;
     // 交易解锁（2026-11-02，本 mod 首个非角色线功能）：postfix 删货架快照，见 TradeShelfRefresher.cs
     internal static ConfigEntry<bool> UnlockTrade;
+    // 探索解锁（2026-11-08）：清空 Explore_DailyOnceMaps.Params3，每日一次探索点（科技公司）不限次
+    internal static ConfigEntry<bool> UnlockDailyOnce;
     internal static volatile bool Rerun = true;
 
     public override void Load()
@@ -81,6 +89,8 @@ public sealed class UnlockHubPlugin : BasePlugin
             "花瓶全角色：制作等级到 1 级，谁都能在工作台学会做花瓶（原本只有大学生的剧情会送）。false=改回游戏原样。");
         UnlockTrade = Config.Bind("Trade", "UnlockTrade", true,
             "交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动重新上架全新货物（官方旧版行为；官方现行是买掉后要等第二天才补货）。false=改回游戏原样。");
+        UnlockDailyOnce = Config.Bind("Explore", "UnlockDailyOnce", true,
+            "探索解锁：地图上每天只能去一次的探索点（当前是科技公司）改为每天想去几次去几次。false=改回游戏原样。");
 
         System.EventHandler reload = (object s, System.EventArgs e) => { Rerun = true; };
         Enabled.SettingChanged += reload;
@@ -90,6 +100,7 @@ public sealed class UnlockHubPlugin : BasePlugin
         ClearPool.SettingChanged += reload;
         VaseRecipe.SettingChanged += reload;
         UnlockTrade.SettingChanged += reload;
+        UnlockDailyOnce.SettingChanged += reload;
 
         // General.Enabled=false：不启 Ticker、零日志零改写（表值本会话从未改过；
         // 运行中关闭由 RoleTicker 按全功能还原目标态处理）
@@ -110,7 +121,7 @@ public sealed class UnlockHubPlugin : BasePlugin
         var go = new GameObject("UnlockHub.Ticker");
         Object.DontDestroyOnLoad(go);
         go.AddComponent<RoleTicker>();
-        Log.LogInfo("[UnlockHub] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
+        Log.LogInfo("[UnlockHub] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）+ 探索解锁（每日一次探索点不限次）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
         SurvivalLog.ModShared.WelcomeTip.Install(Log);
     }
 }
@@ -123,23 +134,27 @@ internal static class RoleTable
 {
     private const string KeyRareSeed = "Plant_RareSeedDiscover";
     private const string KeyFlowerSeed = "Plant_FlowerSeedDiscover";
+    private const string KeyDailyOnceMaps = "Explore_DailyOnceMaps";
 
     // GlobalSetting 原值（null=尚未见过该条目）
-    private static string _origRareAllow, _origFlowerAllow;
+    private static string _origRareAllow, _origFlowerAllow, _origDailyOnceMaps;
 
     // DefenseLv 每行四列原值：rowKey(Lv) -> [P1,P2,P3,P4]
     private static readonly Dictionary<int, List<int>[]> OrigCols = new();
 
     /// <summary>一轮同步。返回 null=表未就绪；否则 (日志行列表)。</summary>
     internal static List<string> Apply(GameCore.HotUpdate.ConfigManager cm, bool unlockVine,
-        bool unlockFlower, bool shareRecipes, bool clearPool, bool vaseRecipe,
+        bool unlockFlower, bool shareRecipes, bool clearPool, bool vaseRecipe, bool unlockDailyOnce,
         bool verbose, bool listAll)
     {
         var lines = new List<string>();
 
-        // ---- 1) GlobalSetting：藤蔓 / 花种白名单（防御门槛保留官方值，不改动）----
+        // ---- 1) GlobalSetting：藤蔓 / 花种白名单（防御门槛保留官方值，不改动）
+        //         + 每日一次探索点列表（空=无任何地图受限，2026-11-08）----
         if (!ApplyAllowList(cm, KeyRareSeed, unlockVine, ref _origRareAllow, "藤蔓", verbose, lines) ||
-            !ApplyAllowList(cm, KeyFlowerSeed, unlockFlower, ref _origFlowerAllow, "花种", verbose, lines))
+            !ApplyAllowList(cm, KeyFlowerSeed, unlockFlower, ref _origFlowerAllow, "花种", verbose, lines) ||
+            !ApplyAllowList(cm, KeyDailyOnceMaps, unlockDailyOnce, ref _origDailyOnceMaps,
+                "每日一次地图", verbose, lines, "列表"))
             return null;
 
         // ---- 2) DefenseLv：P1~P4 列并集 ----
@@ -330,9 +345,10 @@ internal static class RoleTable
         return true; // 表就绪但无 325 行=游戏无此配方，不阻断其他功能
     }
 
-    /// <summary>单条白名单同步：enabled=清空 Params3，disabled=还原原值。返回 false=表未就绪。</summary>
+    /// <summary>单条白名单同步：enabled=清空 Params3，disabled=还原原值。返回 false=表未就绪。
+    /// noun=日志用语（藤蔓/花种为"白名单"；每日一次地图为"列表"）。</summary>
     private static bool ApplyAllowList(GameCore.HotUpdate.ConfigManager cm, string key, bool enabled,
-        ref string orig, string label, bool verbose, List<string> lines)
+        ref string orig, string label, bool verbose, List<string> lines, string noun = "白名单")
     {
         var e = cm.TryGet_Config_GlobalSetting(key);
         if (e == null) return true; // 条目不存在=游戏没有此限制，不算未就绪
@@ -345,10 +361,10 @@ internal static class RoleTable
         if ((cur ?? "") != want)
         {
             e.Params3 = want;
-            lines.Add($"GS {key}.Params3 {label}白名单 \"{cur}\" -> \"{want}\"");
+            lines.Add($"GS {key}.Params3 {label}{noun} \"{cur}\" -> \"{want}\"");
         }
         else if (verbose)
-            lines.Add($"GS {key}.Params3 {label}白名单 = \"{cur}\"（原 \"{orig}\"）");
+            lines.Add($"GS {key}.Params3 {label}{noun} = \"{cur}\"（原 \"{orig}\"）");
         return true;
     }
 
@@ -408,6 +424,7 @@ internal sealed class RoleTicker : MonoBehaviour
             on && UnlockHubPlugin.ShareDefenseRecipes.Value,
             on && UnlockHubPlugin.ClearPool.Value,
             on && UnlockHubPlugin.VaseRecipe.Value,
+            on && UnlockHubPlugin.UnlockDailyOnce.Value,
             false, listAll);
         if (lines == null) { UnlockHubPlugin.Rerun = true; return; } // 配置表未就绪
         UnlockHubPlugin.Rerun = false;
@@ -437,9 +454,10 @@ internal sealed class RoleTicker : MonoBehaviour
             var def = on && UnlockHubPlugin.ShareDefenseRecipes.Value ? "开" : "关";
             var pool = on && UnlockHubPlugin.ClearPool.Value ? "开" : "关";
             var vase = on && UnlockHubPlugin.VaseRecipe.Value ? "开" : "关";
+            var daily = on && UnlockHubPlugin.UnlockDailyOnce.Value ? "开" : "关";
             UnlockHubPlugin.Log.LogInfo(
                 $"[UnlockHub] 生效：藤蔓全角色解锁={vine}（防御门槛按官方规则保留），" +
-                $"防御配方互通={def}，生存规划互通={pool}，花瓶配方={vase}。配置改动后自动重写/还原。");
+                $"防御配方互通={def}，生存规划互通={pool}，花瓶配方={vase}，探索每日不限次={daily}。配置改动后自动重写/还原。");
         }
     }
 

@@ -6,7 +6,7 @@
 
 ## 一、这是干什么的
 
-把游戏里各类官方限制逐项放开的通用解锁合集。现有两条线：**角色线**——原版不少内容锁角色（爬山虎种子只有女大学生能发现、花瓶配方只有大学生剧情送、部分生存规划只刷给对应角色），本 mod 把这些限制放开让任何角色都能玩到全套；**交易线**——无人机交易买完货后货架自动重新上架（恢复官方旧版行为，官方现行是买掉后要等第二天才补货）。每项都可单独关掉还原。
+把游戏里各类官方限制逐项放开的通用解锁合集。现有三条线：**角色线**——原版不少内容锁角色（爬山虎种子只有女大学生能发现、花瓶配方只有大学生剧情送、部分生存规划只刷给对应角色），本 mod 把这些限制放开让任何角色都能玩到全套；**交易线**——无人机交易买完货后货架自动重新上架（恢复官方旧版行为，官方现行是买掉后要等第二天才补货）；**探索线**——地图上每天只能去一次的探索点（现为科技公司）放开为每天不限次。每项都可单独关掉还原。
 
 ## 二、功能清单
 
@@ -22,6 +22,10 @@
 
 - 交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动**重新上架全新货物、数量全满**（官方旧版"买完即补"行为；官方现行是每天只随机补一小部分，重复买同一种货要等第二天）。休闲模式的稀有货架不受影响（保持官方稀有度限制）
 
+### 探索线（v1.9.0 新增）
+
+- 探索解锁：地图上"每天只能前往一次"的探索点（当前是科技公司）改为每天不限次前往。官方的限制源就是一份"每日一次地图"清单，本功能清空该清单——官方未来往清单里加新地点也会一并放开。每次前往的消耗、暴露值等其余规则照旧
+
 ### 通用
 
 - 全部功能都有开关，关=还原官方行为；不改任何概率与数值平衡（交易解锁只改补货时机，不伪造货架内容——重抽由游戏官方逻辑完成）
@@ -29,8 +33,9 @@
 ## 三、安全与还原
 
 - 不改游戏文件 / 删 dll 即还原
-- 角色线全部改写在内存配置表上完成，改动后自动重写/还原，无需重启
+- 角色线与探索线全部改写在内存配置表上完成，改动后自动重写/还原，无需重启
 - 交易线对存档的全部改动 = 删除一个游戏官方的货架快照键（合法存档状态，旧档本来就没有该键）；补货/重抽 100% 走游戏官方代码路径
+- 探索线零存档写入（开启期间连"今日已去过"标记都不会写）
 - 已购/已学的规划与配方属于存档侧数据：关闭开关或卸载后这些保留不退，只影响之后的抽取与解锁
 
 ## 四、安装与卸载
@@ -55,10 +60,11 @@
 | Plan.ClearPool | true | 生存规划全角色：每日规划商店里，别的角色的专属规划（种花、做菜、存粮、搬东西这些共 46 项）也会刷出来，谁都能买（已买的不退）。注意：各角色的房屋扩建类规划不会互通。false=改回游戏原样（只能刷到自己的）。 |
 | Plan.VaseRecipe | true | 花瓶全角色：制作等级到 1 级，谁都能在工作台学会做花瓶（原本只有大学生的剧情会送）。false=改回游戏原样。 |
 | Trade.UnlockTrade | true | 交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动重新上架全新货物（官方旧版行为；官方现行是买掉后要等第二天才补货）。false=改回游戏原样。 |
+| Explore.UnlockDailyOnce | true | 探索解锁：地图上每天只能去一次的探索点（当前是科技公司）改为每天想去几次去几次。false=改回游戏原样。 |
 
 ## 六、English
 
-**Unlock Hub** — Removes official restrictions: role-locked content (vine seeds, flower seeds, cross-role life plans, vase recipe) for every character, plus instant drone-trade shelf restock.
+**Unlock Hub** — Removes official restrictions: role-locked content (vine seeds, flower seeds, cross-role life plans, vase recipe) for every character, plus instant drone-trade shelf restock and unlimited daily-once map visits.
 
 **Features**
 - Any character can discover vine (ivy) seeds when harvesting, plant vines and get the vine shield; the official defense-level gate for seed discovery is kept
@@ -67,13 +73,14 @@
 - 46 function-type exclusive life plans can appear in the daily plan shop and be bought by any character; purchased plans are never removed; room-expansion / furniture-slot plans stay role-bound
 - The vase recipe becomes learnable at crafting level 1 (originally only given by one character's story)
 - **Trade Unlock (v1.8.0)**: after each drone-trade purchase the trading point's shelf restocks with fresh goods the next time you open it (the old official behavior; the current official build only partially restocks once per day). Casual-mode rare shelves are untouched
+- **Explore Unlock (v1.9.0)**: map points limited to one visit per day (currently the Tech Company) can be visited as many times as you like each day; the underlying "daily-once" restricted-point list is cleared, so points added to it by future official updates are freed as well. Per-trip costs and exposure rules are unchanged
 - Every feature has its own switch; off = vanilla behavior
 
 **Requirements / Install / Uninstall**
 Survival Log (Steam AppID 4164790) + BepInEx 6 IL2CPP. Install the Full package (bundled BepInEx 6 base — extract into the game root, `steamapps\common\Survival Log`) or the PluginOnly package (drop `SurvivalLog.UnlockHub.dll` into `BepInEx\plugins\` if BepInEx 6 is already installed). Upgrading from the old RoleUnlock build: delete the old `SurvivalLog.RoleUnlock.dll` first. Uninstall = delete the DLL; the game returns to vanilla restrictions (plans and recipes you already own stay in your save).
 
 **Configuration**
-Config file: `BepInEx\config\com.local.survivallog.unlockhub.cfg`. Six independent switches (vine, flower seeds, defense recipes, plan sharing, vase recipe, trade unlock) plus a master switch; changes rewrite or restore automatically without a restart.
+Config file: `BepInEx\config\com.local.survivallog.unlockhub.cfg`. Seven independent switches (vine, flower seeds, defense recipes, plan sharing, vase recipe, trade unlock, daily-once explore) plus a master switch; changes rewrite or restore automatically without a restart.
 
 **Credits**
 By Night (Douyin 166660371). Free for personal use. Do NOT re-upload or redistribute anywhere without permission.
