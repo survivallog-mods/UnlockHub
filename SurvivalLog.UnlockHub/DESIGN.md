@@ -103,6 +103,7 @@
 | Plan.VaseRecipe | true | 花瓶全角色：制作等级 1 谁都能学做花瓶（原生仅大学生剧情送）；false=还原 |
 | Trade.UnlockTrade | true | 交易解锁：无人机货架买完即刷（官方旧版行为）；false=还原（见 §9） |
 | Explore.UnlockDailyOnce | true | 探索解锁：每日一次探索点（科技公司）不限次；false=还原（见 §10） |
+| Rebirth.UnlockChances | true | 重生解锁：大重生机会基本不限次（上限读取改 999）；false=还原（见 §11） |
 
 注：SkipDefenseGate（清零藤蔓种子防御门槛）已于 2026-10-24 按作者决定移除——门槛保留官方规则；
 UnlockFlowerSeeds 默认值同日改 true（作者定案：其他角色默认可发现花朵种子）。
@@ -214,3 +215,42 @@ cfg 文件名 `com.local.survivallog.roleunlock.cfg`（Guid `com.local.survivall
 - **验证清单（装机）**：首跑日志 `GS Explore_DailyOnceMaps.Params3 每日一次地图列表 "1003" -> ""`；
   同日两次前往科技公司均正常进入；关开关后自动还原次日恢复每日一次；mod 开启期间存档无
   explore.dailyonce.1003 计数残留。
+
+## 11. 重生解锁——大重生机会基本不限次（2026-11-10，v1.11.0）
+
+- **行为**：死亡后的"大重生"机会上限改为 999（基本不限次）。官方每档只有少数几次（表实值离线
+  不可读——gamekb 表 dump 中 GlobalSetting 降级 dict-cast-failed、448 个 MainPackage bundle 无明文，
+  装机首跑拦截日志读出），用完即真结局（只能结算/重开）。小重生（回退 1/5 天，信念点计价
+  RebirthPrice1Day/5Day + 开关 RebirthEnableDayRollback/5DayRollback）、血上限惩罚
+  （RebirthHpMaxPenalty）、快照槽位等其他重生规则全部不动（各自独立 GameKey 读取器，未挂载）。
+- **机制**（build 26454866 反汇编实证，2026-11-10）：
+  - 限制源=全局配置表条目 `RebirthMaxChances`：Params1（int 0x18）为机会上限；读取器
+    `GameKey.get_GlobalSetting_RebirthMaxChances`（public static，RVA 0x264EC00）。
+  - 判定公式（全部消费点同构）：剩余 = max(0, 上限 − GameSaveData.RebirthChancesUsed(0xF0))；
+    `CanMajorRebirth`（0x294E590）= CurSave!=null && 剩余>0（失败原因 "no-save"/"no-chance-left"）。
+  - 12 处 E8 调用点全部经由该 getter（il2cpp 节 xref 全量）：`BattleMain.OpenGameoverUI`
+    （死亡页 0x2F5C1DF）/`TryResumePendingDeathChoice`、`Reducer_Web_RebirthChoice.RA_Open/RA_Select`
+    （选择页数量+确认）、`Reducer_Web_MainUI.GetMajorRebirthChancesLeft/HasMajorRebirthChance/
+    RA_RebirthSave`（主菜单存档列表；无机会→log"已无大重生机会，忽略重生请求"拒绝进入）、
+    `EnterSaveByFileName`、`Reducer_Web_EndingChoice.RA_Open/RA_Close`、
+    `TryBeginMinorRebirth/TryBeginRoundRestart`、`WebGm.ProcessMessage`（"[GM] 重生态：已用机会
+    {0}/{1}"）、`Reducer_Data_WorldState.RA_UpdateGameCount`（遥测只上报）。
+  - 消耗：`BattleMain.SaveGameOver → MarkMajorRebirthConsumed`（0x295B770）唯一写入方——
+    Used++ 后立即 SaveGameFileCore 落盘（顺带清 HpMaxPenaltyStacks/FaithSpentThisRound）；
+    `HistoryChild.RebirthChancesUsed`(0x94) 为存档列表镜像元数据。
+  - **排除**：`GameOverTriggerManager.CheckRebirthExceeded`（0x2749B00）是 DemoTwo 专用
+    （Initialize 仅 IsDemoTwo && GS DemoTwoGameOver=1 时读 DemoTwoMaxRebirth），正式版恒 false，
+    非限制源。
+- **为什么补丁而不是表编辑**：getter 内部进程级静态缓存（GameKey+0x20F0：缓存非 0 直接返回，
+  首读表后永不回读；条目缺失走 throw helper 0x50d330=不能删条目只能改值）。纯表编辑无法保证
+  早于首读（主菜单存档列表 FillSaveInfoFromHistory 很早读取），会随机不生效 → Harmony postfix
+  改返回值 999（交易线同款纪律：逐类挂载+异常隔离+开关门控；false=原样返回官方值，
+  零状态零还原成本；999 而非 int.MaxValue——UI"已用机会 X/Y"排版与最后机会警告逻辑友好）。
+- **存档语义知情**：mod 不写存档；开启期间重生时官方代码照常把 Used 记进存档（可超官方上限），
+  关开关后该档按官方公式=无剩余机会（"借"不是"送"）。
+- **实现**：`RebirthChanceUnlocker.cs`（postfix ref int __result）；cfg `Rebirth.UnlockChances`
+  （默认 true）；首次拦截日志输出官方原值（装机核对锚点）。
+- **验证清单（装机）**：首跑日志 `[RebirthUnlock] 首次拦截确认：官方重生机会上限 X -> 999`
+  （X=表实值）；耗尽档（死亡页"重生机会耗尽"）开 mod 后重生入口恢复、可正常大重生、选择页显示
+  剩余 999−X；主菜单存档列表重生入口不再锁；关开关后耗尽档重新锁死；小重生价格/血上限惩罚照旧；
+  存档无本 mod 写入痕迹（Used 增长全部来自官方 MarkMajorRebirthConsumed）。

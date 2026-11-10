@@ -6,7 +6,7 @@
 
 ## 一、这是干什么的
 
-把游戏里各类官方限制逐项放开的通用解锁合集。现有三条线：**角色线**——原版不少内容锁角色（爬山虎种子只有女大学生能发现、花瓶配方只有大学生剧情送、部分生存规划只刷给对应角色），本 mod 把这些限制放开让任何角色都能玩到全套；**交易线**——无人机交易买完货后货架自动重新上架（恢复官方旧版行为，官方现行是买掉后要等第二天才补货）；**探索线**——地图上每天只能去一次的探索点（现为科技公司）放开为每天不限次。每项都可单独关掉还原。
+把游戏里各类官方限制逐项放开的通用解锁合集。现有四条线：**角色线**——原版不少内容锁角色（爬山虎种子只有女大学生能发现、花瓶配方只有大学生剧情送、部分生存规划只刷给对应角色），本 mod 把这些限制放开让任何角色都能玩到全套；**交易线**——无人机交易买完货后货架自动重新上架（恢复官方旧版行为，官方现行是买掉后要等第二天才补货）；**探索线**——地图上每天只能去一次的探索点（现为科技公司）放开为每天不限次；**重生线**——死亡后的"大重生"机会（官方每档只有少数几次，用完就真结局）放开为基本不限次。每项都可单独关掉还原。
 
 ## 二、功能清单
 
@@ -26,9 +26,13 @@
 
 - 探索解锁：地图上"每天只能前往一次"的探索点（当前是科技公司）改为每天不限次前往。官方的限制源就是一份"每日一次地图"清单，本功能清空该清单——官方未来往清单里加新地点也会一并放开。每次前往的消耗、暴露值等其余规则照旧
 
+### 重生线（v1.11.0 新增）
+
+- 重生解锁：死亡后的"大重生"机会改为基本不限次（官方每档只有少数几次，用完就真结局、只能结算或重开）。开启期间游戏照常记录"已重生次数"（官方行为，mod 不额外写存档）；关闭开关后，已经重生超过官方上限的档会回到无剩余机会。小重生（回退 1/5 天）、信念点价格、血上限惩罚等其余重生规则照旧
+
 ### 通用
 
-- 全部功能都有开关，关=还原官方行为；不改任何概率与数值平衡（交易解锁只改补货时机，不伪造货架内容——重抽由游戏官方逻辑完成）
+- 全部功能都有开关，关=还原官方行为；不改任何概率与数值平衡（交易解锁只改补货时机，不伪造货架内容——重抽由游戏官方逻辑完成；重生解锁只把"机会上限"的读取结果改大，已用计数仍由游戏官方代码记录）
 
 ## 三、安全与还原
 
@@ -36,6 +40,7 @@
 - 角色线与探索线全部改写在内存配置表上完成，改动后自动重写/还原，无需重启
 - 交易线对存档的全部改动 = 删除一个游戏官方的货架快照键（合法存档状态，旧档本来就没有该键）；补货/重抽 100% 走游戏官方代码路径
 - 探索线零存档写入（开启期间连"今日已去过"标记都不会写）
+- 重生线零存档写入（只改"上限"的读取结果）；开启期间正常重生时游戏照常记"已用次数"，关闭后超上限的档回到官方无机会状态
 - 已购/已学的规划与配方属于存档侧数据：关闭开关或卸载后这些保留不退，只影响之后的抽取与解锁
 
 ## 四、安装与卸载
@@ -61,10 +66,11 @@
 | Plan.VaseRecipe | true | 花瓶全角色：制作等级到 1 级，谁都能在工作台学会做花瓶（原本只有大学生的剧情会送）。false=改回游戏原样。 |
 | Trade.UnlockTrade | true | 交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动重新上架全新货物（官方旧版行为；官方现行是买掉后要等第二天才补货）。false=改回游戏原样。 |
 | Explore.UnlockDailyOnce | true | 探索解锁：地图上每天只能去一次的探索点（当前是科技公司）改为每天想去几次去几次。false=改回游戏原样。 |
+| Rebirth.UnlockChances | true | 重生解锁：死亡后的"大重生"机会改为基本不限次（官方每档只有少数几次，用完就真结局）。false=改回游戏原样。 |
 
 ## 六、English
 
-**Unlock Hub** — Removes official restrictions: role-locked content (vine seeds, flower seeds, cross-role life plans, vase recipe) for every character, plus instant drone-trade shelf restock and unlimited daily-once map visits.
+**Unlock Hub** — Removes official restrictions: role-locked content (vine seeds, flower seeds, cross-role life plans, vase recipe) for every character, plus instant drone-trade shelf restock, unlimited daily-once map visits, and near-unlimited major-rebirth chances after death.
 
 **Features**
 - Any character can discover vine (ivy) seeds when harvesting, plant vines and get the vine shield; the official defense-level gate for seed discovery is kept
@@ -74,13 +80,14 @@
 - The vase recipe becomes learnable at crafting level 1 (originally only given by one character's story)
 - **Trade Unlock (v1.8.0)**: after each drone-trade purchase the trading point's shelf restocks with fresh goods the next time you open it (the old official behavior; the current official build only partially restocks once per day). Casual-mode rare shelves are untouched
 - **Explore Unlock (v1.9.0)**: map points limited to one visit per day (currently the Tech Company) can be visited as many times as you like each day; the underlying "daily-once" restricted-point list is cleared, so points added to it by future official updates are freed as well. Per-trip costs and exposure rules are unchanged
+- **Rebirth Unlock (v1.11.0)**: the major-rebirth chance cap after death (officially only a few per save, exhausted = final game over) becomes effectively unlimited. The used-chance counter is still written by official game code as normal; after turning the switch off, saves that rebirthed past the official cap are back to zero chances. Minor rebirth (1/5-day rollback), faith prices and HP-max penalties are untouched
 - Every feature has its own switch; off = vanilla behavior
 
 **Requirements / Install / Uninstall**
 Survival Log (Steam AppID 4164790) + BepInEx 6 IL2CPP. Install the Full package (bundled BepInEx 6 base — extract into the game root, `steamapps\common\Survival Log`) or the PluginOnly package (drop `SurvivalLog.UnlockHub.dll` into `BepInEx\plugins\` if BepInEx 6 is already installed). Upgrading from the old RoleUnlock build: delete the old `SurvivalLog.RoleUnlock.dll` first. Uninstall = delete the DLL; the game returns to vanilla restrictions (plans and recipes you already own stay in your save).
 
 **Configuration**
-Config file: `BepInEx\config\com.local.survivallog.unlockhub.cfg`. Seven independent switches (vine, flower seeds, defense recipes, plan sharing, vase recipe, trade unlock, daily-once explore) plus a master switch; changes rewrite or restore automatically without a restart.
+Config file: `BepInEx\config\com.local.survivallog.unlockhub.cfg`. Eight independent switches (vine, flower seeds, defense recipes, plan sharing, vase recipe, trade unlock, daily-once explore, rebirth chances) plus a master switch; changes rewrite or restore automatically without a restart.
 
 **Credits**
 By Night (Douyin 166660371). Free for personal use. Do NOT re-upload or redistribute anywhere without permission.

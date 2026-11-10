@@ -38,10 +38,16 @@ namespace SurvivalLog.UnlockHub;
 ///    进入闸门 OnCheckAndGo→IsDailyOnceUsedToday / 已去标记 MarkDailyOnceEntered / 跨日重置
 ///    PostDailyOnceForMap 三条消费路径全部以它为第一道判定。清空 Params3 → 每日一次探索点不限次
 ///    （连"已去过"计数器都不再写，零存档副作用）。官方未来把更多地图加入该列表也一并放开。
+/// 6) 重生解锁（2026-11-10 起）：死亡后的"大重生"机会上限=Config_GlobalSetting["RebirthMaxChances"]
+///    .Params1，经 GameKey.get_GlobalSetting_RebirthMaxChances 静态读取器分发——死亡页按钮/
+///    重生选择页数量与确认/主菜单存档列表重生入口等 12 处调用点全部经由它（公式
+///    剩余=max(0,上限−存档已用次数)）。该 getter 有进程级静态缓存（首读后永不回读表）→ 表编辑
+///    不可靠，走 postfix 改返回值 999；已用次数照常由官方代码写入存档（知情：关开关后超上限的
+///    档回到无机会）。实现见 RebirthChanceUnlocker.cs。
 ///
 /// 表线（1~3、5）保持纯内存表编辑（零 Harmony——il2cpp 泛型 List 参数补丁会静默失败）；
-/// 交易解锁（4）是本 mod 首个 Harmony 补丁线（套件有 EndlessGuard/CabinetEverywhere 等成熟先例；
-/// 逐类挂载+异常隔离，postfix 只读 int 参数避开泛型坑）。各线正交，互不依赖。
+/// 交易解锁（4）与重生解锁（6）是两条 Harmony 补丁线（套件有 EndlessGuard/CabinetEverywhere
+/// 等成熟先例；逐类挂载+异常隔离，postfix 只碰 int 标量避开泛型坑）。各线正交，互不依赖。
 /// 幂等：表线进程内首读值记为原值，重复执行永远按原值推目标态；全部功能有 cfg 开关（关=还原）。
 ///
 /// General.Enabled 总开关（2026-10-24，ModCenter 启停位）：false=全功能目标态切"还原官方"
@@ -54,7 +60,7 @@ public sealed class UnlockHubPlugin : BasePlugin
     public const string Guid = "com.local.survivallog.unlockhub";
     public const string Name = "UnlockHub";
     // 跟随套件 version.json，发版时与套件同步（版本号由作者定义）
-    public const string Version = "1.9.0";
+    public const string Version = "1.11.0";
 
     internal static ManualLogSource Log;
 
@@ -70,6 +76,8 @@ public sealed class UnlockHubPlugin : BasePlugin
     internal static ConfigEntry<bool> UnlockTrade;
     // 探索解锁（2026-11-08）：清空 Explore_DailyOnceMaps.Params3，每日一次探索点（科技公司）不限次
     internal static ConfigEntry<bool> UnlockDailyOnce;
+    // 重生解锁（2026-11-10）：postfix 改 RebirthMaxChances 读取结果为 999，见 RebirthChanceUnlocker.cs
+    internal static ConfigEntry<bool> UnlockChances;
     internal static volatile bool Rerun = true;
 
     public override void Load()
@@ -91,6 +99,8 @@ public sealed class UnlockHubPlugin : BasePlugin
             "交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动重新上架全新货物（官方旧版行为；官方现行是买掉后要等第二天才补货）。false=改回游戏原样。");
         UnlockDailyOnce = Config.Bind("Explore", "UnlockDailyOnce", true,
             "探索解锁：地图上每天只能去一次的探索点（当前是科技公司）改为每天想去几次去几次。false=改回游戏原样。");
+        UnlockChances = Config.Bind("Rebirth", "UnlockChances", true,
+            "重生解锁：死亡后的\"大重生\"机会改为基本不限次（官方每档只有少数几次，用完就真结局）。注意：开着期间重生的次数会照常记进存档，关掉后超过官方上限的档会回到无机会。false=改回游戏原样。");
 
         System.EventHandler reload = (object s, System.EventArgs e) => { Rerun = true; };
         Enabled.SettingChanged += reload;
@@ -101,6 +111,7 @@ public sealed class UnlockHubPlugin : BasePlugin
         VaseRecipe.SettingChanged += reload;
         UnlockTrade.SettingChanged += reload;
         UnlockDailyOnce.SettingChanged += reload;
+        UnlockChances.SettingChanged += reload;
 
         // General.Enabled=false：不启 Ticker、零日志零改写（表值本会话从未改过；
         // 运行中关闭由 RoleTicker 按全功能还原目标态处理）
@@ -121,7 +132,7 @@ public sealed class UnlockHubPlugin : BasePlugin
         var go = new GameObject("UnlockHub.Ticker");
         Object.DontDestroyOnLoad(go);
         go.AddComponent<RoleTicker>();
-        Log.LogInfo("[UnlockHub] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）+ 探索解锁（每日一次探索点不限次）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
+        Log.LogInfo("[UnlockHub] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）+ 探索解锁（每日一次探索点不限次）+ 重生解锁（大重生机会基本不限次）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
         SurvivalLog.ModShared.WelcomeTip.Install(Log);
     }
 }
