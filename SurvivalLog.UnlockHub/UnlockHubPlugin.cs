@@ -44,8 +44,17 @@ namespace SurvivalLog.UnlockHub;
 ///    剩余=max(0,上限−存档已用次数)）。该 getter 有进程级静态缓存（首读后永不回读表）→ 表编辑
 ///    不可靠，走 postfix 改返回值 999；已用次数照常由官方代码写入存档（知情：关开关后超上限的
 ///    档回到无机会）。实现见 RebirthChanceUnlocker.cs。
+/// 7) 属性上限解锁（2026-11-10 起）：属性"上限值"的封顶=Config_AttributeStandard 行 101~105
+///    （MaxSatiety~MaxVitality，Des_Local"饱腹（上限）"等）的 Max=500——AttributeComponent
+///    .OnCreate 首建 AttrDict 时快照进 Attr.Max，GetTotalValue 读值时按 [Min,Max] 钳制（上限值
+///    本身超 500 一律读成 500，吃/回/增益全链路共用）。本 mod 把其中四行（101/102/103/105=主界面
+///    饱腹/心态/精力/生命，RA_Open 反汇编实证 HUD 只插 1/2/3/5）的 Max 500→可配目标（cfg
+///    Attribute.CapValue，区间 500~9999 默认 999）→ 上限可堆到目标值（不白送数值，只解除封顶）。
+///    104 健康=隐藏属性（无 HUD 条但 Buff 真实运作），作者定案不动。时机：改表落主菜单阶段
+///    （Ticker 首轮），早于进档创建组件；运行中关闭=表立即还原，已在场角色的 Attr.Max 缓存要
+///    过图重进后回官方 500。
 ///
-/// 表线（1~3、5）保持纯内存表编辑（零 Harmony——il2cpp 泛型 List 参数补丁会静默失败）；
+/// 表线（1~3、5、7）保持纯内存表编辑（零 Harmony——il2cpp 泛型 List 参数补丁会静默失败）；
 /// 交易解锁（4）与重生解锁（6）是两条 Harmony 补丁线（套件有 EndlessGuard/CabinetEverywhere
 /// 等成熟先例；逐类挂载+异常隔离，postfix 只碰 int 标量避开泛型坑）。各线正交，互不依赖。
 /// 幂等：表线进程内首读值记为原值，重复执行永远按原值推目标态；全部功能有 cfg 开关（关=还原）。
@@ -60,7 +69,7 @@ public sealed class UnlockHubPlugin : BasePlugin
     public const string Guid = "com.local.survivallog.unlockhub";
     public const string Name = "UnlockHub";
     // 跟随套件 version.json，发版时与套件同步（版本号由作者定义）
-    public const string Version = "1.11.0";
+    public const string Version = "1.12.0";
 
     internal static ManualLogSource Log;
 
@@ -78,6 +87,10 @@ public sealed class UnlockHubPlugin : BasePlugin
     internal static ConfigEntry<bool> UnlockDailyOnce;
     // 重生解锁（2026-11-10）：postfix 改 RebirthMaxChances 读取结果为 999，见 RebirthChanceUnlocker.cs
     internal static ConfigEntry<bool> UnlockChances;
+    // 属性上限解锁（2026-11-10）：AttributeStandard 101/102/103/105 封顶 500→CapValue，见 RoleTable.ApplyAttrCap
+    internal static ConfigEntry<bool> UnlockCap;
+    // 属性上限解锁的目标封顶值（500~9999，默认 999；仅 UnlockCap 开启时生效）
+    internal static ConfigEntry<int> CapValue;
     internal static volatile bool Rerun = true;
 
     public override void Load()
@@ -101,6 +114,11 @@ public sealed class UnlockHubPlugin : BasePlugin
             "探索解锁：地图上每天只能去一次的探索点（当前是科技公司）改为每天想去几次去几次。false=改回游戏原样。");
         UnlockChances = Config.Bind("Rebirth", "UnlockChances", true,
             "重生解锁：死亡后的\"大重生\"机会改为基本不限次（官方每档只有少数几次，用完就真结局）。注意：开着期间重生的次数会照常记进存档，关掉后超过官方上限的档会回到无机会。false=改回游戏原样。");
+        UnlockCap = Config.Bind("Attribute", "UnlockCap", true,
+            "属性上限解锁：饱腹、心态、精力、生命这四条属性的\"上限值\"官方封顶 500，改为最高可堆到 CapValue 设的值（只解除封顶，不白送数值；想堆满还得靠游戏里加上限的规划/天赋/食物）。false=改回游戏原样（已在场的角色要过图重进后生效）。");
+        CapValue = Config.Bind("Attribute", "CapValue", 999,
+            new ConfigDescription("属性上限解锁的封顶值（500~9999）：四条属性的上限值最高能堆到多少，默认 999。只在 UnlockCap 开启时生效；改小后已堆高的上限要过图重进后才会压回新封顶。",
+                new AcceptableValueRange<int>(RoleTable.AttrCapMin, RoleTable.AttrCapMax)));
 
         System.EventHandler reload = (object s, System.EventArgs e) => { Rerun = true; };
         Enabled.SettingChanged += reload;
@@ -112,6 +130,8 @@ public sealed class UnlockHubPlugin : BasePlugin
         UnlockTrade.SettingChanged += reload;
         UnlockDailyOnce.SettingChanged += reload;
         UnlockChances.SettingChanged += reload;
+        UnlockCap.SettingChanged += reload;
+        CapValue.SettingChanged += reload;
 
         // General.Enabled=false：不启 Ticker、零日志零改写（表值本会话从未改过；
         // 运行中关闭由 RoleTicker 按全功能还原目标态处理）
@@ -132,7 +152,7 @@ public sealed class UnlockHubPlugin : BasePlugin
         var go = new GameObject("UnlockHub.Ticker");
         Object.DontDestroyOnLoad(go);
         go.AddComponent<RoleTicker>();
-        Log.LogInfo("[UnlockHub] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）+ 探索解锁（每日一次探索点不限次）+ 重生解锁（大重生机会基本不限次）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
+        Log.LogInfo("[UnlockHub] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）+ 探索解锁（每日一次探索点不限次）+ 重生解锁（大重生机会基本不限次）+ 属性上限解锁（饱腹/心态/精力/生命封顶 500→可配 500~9999）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
         SurvivalLog.ModShared.WelcomeTip.Install(Log);
     }
 }
@@ -156,7 +176,7 @@ internal static class RoleTable
     /// <summary>一轮同步。返回 null=表未就绪；否则 (日志行列表)。</summary>
     internal static List<string> Apply(GameCore.HotUpdate.ConfigManager cm, bool unlockVine,
         bool unlockFlower, bool shareRecipes, bool clearPool, bool vaseRecipe, bool unlockDailyOnce,
-        bool verbose, bool listAll)
+        int attrCap, bool verbose, bool listAll)
     {
         var lines = new List<string>();
 
@@ -237,6 +257,9 @@ internal static class RoleTable
 
         // ---- 2.6) ProductionList：花瓶配方 325（Plan.VaseRecipe，默认 true；false=还原官方等级）----
         if (!ApplyVaseRecipe(cm, vaseRecipe, verbose, listAll, lines)) return null;
+
+        // ---- 2.7) AttributeStandard：四条上限封顶 500→CapValue（Attribute.UnlockCap，2026-11-10）----
+        if (!ApplyAttrCap(cm, attrCap, verbose, listAll, lines)) return null;
 
         return lines;
     }
@@ -356,6 +379,72 @@ internal static class RoleTable
         return true; // 表就绪但无 325 行=游戏无此配方，不阻断其他功能
     }
 
+    // ---- 5) AttributeStandard："上限值"属性封顶解除（Attribute.UnlockCap + Attribute.CapValue）----
+    // 上限属性行 101~105 的 Max=500 是整条读值钳制链（GetTotalValue 按 [Min,Max] 钳制，吃/回/
+    // 增益/UI 全走它）的天花板；当前值行 1~5 自身 Max=int.MaxValue 不受限。本 mod 只改其中四行：
+    // 101/102/103/105=主界面饱腹/心态/精力/生命（RA_Open 反汇编实证 HUD 只插 1/2/3/5）；
+    // 104 健康=隐藏属性（无 HUD 条但 Buff 真实运作），作者定案不动；NPC 侧 81001+ 独立行，不动。
+    // 时机知情：Attr.Max 在 AttributeComponent.OnCreate 首建 AttrDict 时从表快照（之后不回读），
+    // 本 mod 在主菜单阶段先行改表、进档创建组件时拿到的已是目标值；运行中关闭=表立即还原，
+    // 已在场角色的缓存值要过图重进后回官方 500。防误降：want=max(官方首读值, 目标值)——
+    // 官方未来若自抬某行上限，本开关不降它。
+    internal const int AttrCapMin = 500;  // CapValue 下限（=官方封顶，不许改小压上限）
+    internal const int AttrCapMax = 9999; // CapValue 上限（再大无意义：UI/公式按 int 安全，作者定案）
+    private const int AttrCapOfficial = 500; // 首跑核对基线（2026-11-05 表：四行全 500）
+    private static readonly Dictionary<int, int> OrigAttrCaps = new();
+
+    /// <summary>四条上限行（101/102/103/105）的 Max 500→target（target&lt;=0=还原官方值）。
+    /// 返回 false=表未就绪；表就绪但目标行全缺=游戏无此结构，不阻断其他功能。</summary>
+    private static bool ApplyAttrCap(GameCore.HotUpdate.ConfigManager cm, int target,
+        bool verbose, bool listAll, List<string> lines)
+    {
+        Il2CppSystem.Collections.Generic.Dictionary<int, GameCore.HotUpdate.Config_AttributeStandard> dict;
+        try { dict = cm._Config_AttributeStandard_Dict; } catch { dict = null; }
+        if (dict == null || dict.Count == 0) return false;
+
+        bool unlockCap = target > 0;
+        int touched = 0; bool baselineOk = true;
+        try
+        {
+            foreach (var kv in dict)
+            {
+                int id = kv.Key;
+                if (id < 101 || id > 105) continue;
+                if (id == 104) continue; // MaxHealth 健康：隐藏属性，作者定案不动
+                var row = kv.Value;
+                if (row == null) continue;
+
+                int max; string name;
+                try { max = row.Max; name = row.Des_Local ?? row.Name ?? ""; } catch { continue; }
+
+                if (!OrigAttrCaps.TryGetValue(id, out var orig))
+                {
+                    orig = max;
+                    OrigAttrCaps[id] = orig;
+                }
+                if (orig != AttrCapOfficial) baselineOk = false;
+
+                int want = unlockCap ? Math.Max(orig, target) : orig;
+                if (max != want)
+                {
+                    row.Max = want;
+                    lines.Add(unlockCap
+                        ? $"AttrStd {id} {name} 数值封顶 {max} -> {want}（官方 {orig}）"
+                        : $"AttrStd {id} {name} 数值封顶 {max} -> 还原官方 {orig}");
+                }
+                else if (verbose || listAll)
+                    lines.Add($"AttrStd {id} {name} 数值封顶 = {max}（官方 {orig}）");
+                touched++;
+            }
+        }
+        catch { }
+
+        if (touched > 0 && (listAll || verbose))
+            lines.Add($"AttrStd 上限解锁：{(unlockCap ? $"封顶 {AttrCapOfficial} -> {target}" : "已还原官方封顶")} 覆盖 {touched}/4 条" +
+                      (baselineOk ? "" : "（⚠ 有条目官方原值≠500，疑似游戏更新改表，请核对上方清单）"));
+        return true;
+    }
+
     /// <summary>单条白名单同步：enabled=清空 Params3，disabled=还原原值。返回 false=表未就绪。
     /// noun=日志用语（藤蔓/花种为"白名单"；每日一次地图为"列表"）。</summary>
     private static bool ApplyAllowList(GameCore.HotUpdate.ConfigManager cm, string key, bool enabled,
@@ -429,6 +518,11 @@ internal sealed class RoleTicker : MonoBehaviour
 
         // 首轮固定输出核对清单（46/77 基线自检），无开关
         var listAll = !_announced;
+        // 属性上限目标值：开关全开=Clamp(CapValue,500,9999)，任一关=0（还原官方）；Clamp 兜底
+        // AcceptableValueRange（手改 cfg 越界时 BepInEx 也会夹，这里再防程序侧写入）
+        int attrCap = on && UnlockHubPlugin.UnlockCap.Value
+            ? Math.Clamp(UnlockHubPlugin.CapValue.Value, RoleTable.AttrCapMin, RoleTable.AttrCapMax)
+            : 0;
         var lines = RoleTable.Apply(cm,
             on && UnlockHubPlugin.UnlockVine.Value,
             on && UnlockHubPlugin.UnlockFlowerSeeds.Value,
@@ -436,6 +530,7 @@ internal sealed class RoleTicker : MonoBehaviour
             on && UnlockHubPlugin.ClearPool.Value,
             on && UnlockHubPlugin.VaseRecipe.Value,
             on && UnlockHubPlugin.UnlockDailyOnce.Value,
+            attrCap,
             false, listAll);
         if (lines == null) { UnlockHubPlugin.Rerun = true; return; } // 配置表未就绪
         UnlockHubPlugin.Rerun = false;
@@ -466,9 +561,11 @@ internal sealed class RoleTicker : MonoBehaviour
             var pool = on && UnlockHubPlugin.ClearPool.Value ? "开" : "关";
             var vase = on && UnlockHubPlugin.VaseRecipe.Value ? "开" : "关";
             var daily = on && UnlockHubPlugin.UnlockDailyOnce.Value ? "开" : "关";
+            var cap = on && UnlockHubPlugin.UnlockCap.Value ? $"开（封顶 {attrCap}）" : "关";
             UnlockHubPlugin.Log.LogInfo(
                 $"[UnlockHub] 生效：藤蔓全角色解锁={vine}（防御门槛按官方规则保留），" +
-                $"防御配方互通={def}，生存规划互通={pool}，花瓶配方={vase}，探索每日不限次={daily}。配置改动后自动重写/还原。");
+                $"防御配方互通={def}，生存规划互通={pool}，花瓶配方={vase}，探索每日不限次={daily}，" +
+                $"属性上限解锁={cap}。配置改动后自动重写/还原。");
         }
     }
 

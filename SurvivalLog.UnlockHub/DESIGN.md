@@ -10,6 +10,8 @@
   燃烧瓶强化、老主顾互通）；家具位类规划黑名单排除；**已购不清退**——还原只影响后续抽取。
 - **花瓶配方互通**（2026-10-24）：花瓶包裹配方 325 等级化解锁，制作等级 1 全角色可学；
   P2 已获者不受影响。
+- **属性上限解锁**（2026-11-10）：主界面四条属性（饱腹/心态/精力/生命）的"上限值"封顶
+  500→可配 500~9999 默认 999（只解除封顶不白送数值；隐藏属性健康/NPC 属性不动）；见 §12。
 - 纯内存表编辑、零 Harmony、幂等。**全部功能有 cfg 开关（关=还原官方值）**：藤蔓/花种/防御配方
   各自独立开关；生存规划互通（Plan.ClearPool）/花瓶配方（Plan.VaseRecipe，2026-10-24 起有开关）；
   General.Enabled 总开关（ModCenter 启停位）false=全功能还原官方并停写。
@@ -104,6 +106,8 @@
 | Trade.UnlockTrade | true | 交易解锁：无人机货架买完即刷（官方旧版行为）；false=还原（见 §9） |
 | Explore.UnlockDailyOnce | true | 探索解锁：每日一次探索点（科技公司）不限次；false=还原（见 §10） |
 | Rebirth.UnlockChances | true | 重生解锁：大重生机会基本不限次（上限读取改 999）；false=还原（见 §11） |
+| Attribute.UnlockCap | true | 属性上限解锁：主界面四条属性（饱腹/心态/精力/生命）上限封顶 500→CapValue；false=还原（见 §12） |
+| Attribute.CapValue | 999 | 属性上限解锁的目标封顶值（500~9999），仅 UnlockCap 开启时生效 |
 
 注：SkipDefenseGate（清零藤蔓种子防御门槛）已于 2026-10-24 按作者决定移除——门槛保留官方规则；
 UnlockFlowerSeeds 默认值同日改 true（作者定案：其他角色默认可发现花朵种子）。
@@ -168,6 +172,9 @@ cfg 文件名 `com.local.survivallog.roleunlock.cfg`（Guid `com.local.survivall
     首读快照（本版 0/0：craft_level=0 纯 P2 剧情发放）。
   - 两开关默认 true（升级用户行为不变）；cfg 键首跑自动生成，SettingChanged 触发 Rerun 热重写。
 - **2026-10-24（作者定案）：cfg 说明改人话版；删 Debug.ListOnReady/Verbose 两调试开关**（首轮核对清单改为固定输出，46/77 基线自检不丢）；UnlockFlowerSeeds 默认 true；SkipDefenseGate 移除（藤蔓种子防御门槛永远保留官方规则）。
+- **2026-11-10 新增：属性上限解锁**（`RoleTable.ApplyAttrCap`，§12）：依赖登记
+  （`tools/gamekb/moddeps.json` configFields 新增 `_Config_AttributeStandard_Dict`：
+  `Max`/`Des_Local`/`Name`）——游戏更新后跑 modcompat_check 重点看是否仍命中。
 - 版本与发版（2026-10-28 起，v2 迁移后）：版本号单源=本仓 csproj <Version>（作者定义）；单 mod 发版=本仓 .\release.ps1；ModShared 改动源=中枢仓 suite\ModShared（push_modshared 推送）。
 
 ## 9. 交易解锁（2026-11-02，v1.8.0；本 mod 首个非角色线功能 + 首个 Harmony 补丁线）
@@ -254,3 +261,50 @@ cfg 文件名 `com.local.survivallog.roleunlock.cfg`（Guid `com.local.survivall
   （X=表实值）；耗尽档（死亡页"重生机会耗尽"）开 mod 后重生入口恢复、可正常大重生、选择页显示
   剩余 999−X；主菜单存档列表重生入口不再锁；关开关后耗尽档重新锁死；小重生价格/血上限惩罚照旧；
   存档无本 mod 写入痕迹（Used 增长全部来自官方 MarkMajorRebirthConsumed）。
+
+## 12. 属性上限解锁——主界面四条属性上限封顶 500→可配（2026-11-10，v1.12.0）
+
+- **行为**：饱腹、心态、精力、生命（主界面四条）的"上限值"官方封顶 500，改为最高可堆到
+  `Attribute.CapValue`（区间 500~9999，默认 999）。只解除封顶不白送数值——上限能堆多高仍由
+  游戏内加上限的规划/天赋/食物决定；当前值跟随上限（可超过 500 直到新上限）。
+- **范围定案（2026-11-10 作者定案）**：只放开 101/102/103/105 四行。104 MaxHealth（健康）
+  与 NPC 侧（81001+ 行，同为 500 封顶）不动。
+- **可见性实证（2026-11-10 作者问询后反汇编补证）**：主界面 HUD 只显示四条属性——
+  `Reducer_Web_CoreUI1.RA_Open`（0x2B72930）构建属性列表只插入 key 1/2/3/5（饱腹/心态/
+  精力/生命，0x2B72C26~0x2B72C8B 四次 Add 逐条实证，无 key 4）。健康（Health，ID 4）无 HUD
+  数值条，但数据层真实运作：TIPS"低于30会陷入【亚健康】、长期饥饿/疲劳影响健康"；Buff 表
+  有「健康上限」(ID 14，专加其上限) 与「亚健康」debuff (104/1006 等)——故按作者定案保持官方
+  封顶不动，日后想放开只需删 ApplyAttrCap 的 `id == 104` 跳过一行。
+- **机制**（build 26454866 反汇编实证，2026-11-10）：
+  - 属性体系：`AttrName` 枚举——当前值 1~5（Satiety/Morale/Stamina/Health/Vitality）、上限值
+    101~105（MaxSatiety~MaxVitality）、间隔 201~、趋向 301~、系数 10001+/20001+/30001+。
+    每个代理的 `AttributeComponent` 持 `AttrDict: Dictionary<AttrName, Attr>`；`Attr` 含
+    BaseValue/StrengtheningValue/ConditionValue/Min/Max。
+  - 封顶源=`Config_AttributeStandard` 行 101~105 的 `Max`（int 0x34）=500（表 dump 实证五行全
+    500；当前值行 1~5 的 Max=int.MaxValue 自身不设限，81001~81004 为 NPC 上限行）。
+  - 快照：`AttributeComponent.OnCreate`（0x3083C90）首建 AttrDict 时逐行把 `row.Min(0x30)/
+    row.Max(0x34)/row.IsSingle(0x38)` 写进 `Attr`；AttrDict 已存在时只清零数值、**Min/Max 不回读**
+    （两个分支均反汇编验证）——即 `Attr.Max` 仅组件创建时读表一次。
+  - 钳制：`GetTotalValue`（0x3083640）`total=Strengthening+Base+Condition` 后按 `[Min,Max]`
+    钳制（反汇编 0x308369c~0x30836a7：先比 Min 再比 Max，出界即夹回）。上限值本体经
+    `GetTotalValue_Int(MaxSatiety)` 读取 → 超 500 一律读成 500；吃/回/增益/UI 的"到顶"判定
+    全部经由它，一处表改全链路生效。
+  - 旁路排查：`Get_Config_AttributeStandard`（0x2FC90F0）全部 6 处 E8 调用点
+    （GroupChatManager.DeliverOneNpcReply / MusicPlaybackTools.GrantTrackFinishMorale /
+    Reducer_Data_Pop.MoveNext / Reducer_Web_CoreUI1.RA_Open / Furniture.SettleCookingResult /
+    AE_HarvestPlant.ApplyHarvestMorale）逐一反汇编核对，只读 `Des_Local`（本地化名称）等元数据，
+    无封顶语义、无静态缓存读取器（与重生线 GameKey 缓存 getter 不同）→ 纯表编辑可靠。
+- **时机知情**：改表落主菜单阶段（Ticker 首轮，cm 就绪即写），早于进档创建角色组件——进档
+  拿到的 `Attr.Max` 已是目标值。运行中关闭开关（或改小 CapValue）：表立即重写，但**已在场
+  角色**的 Attr.Max 缓存要到过图/重进存档（组件重建）后才回官方/新封顶——与其他表线"即时
+  还原"不同，属快照语义的已知边界，cfg 描述已注明。
+- **防误降**：目标值取 `max(官方首读值, CapValue)`——官方未来若自抬某行上限，本开关不降它；
+  CapValue 越界由 AcceptableValueRange(500,9999) 与代码 Clamp 双保险夹取。
+- **实现**：`RoleTable.ApplyAttrCap`（迭代 101~105，跳过 104；首读快照原值幂等；基线四行全
+  500 自检，不符带 ⚠ 不阻断；target≤0=还原官方值）；cfg `Attribute.UnlockCap`（默认 true）
+  + `Attribute.CapValue`（默认 999，int，500~9999）。
+- **验证清单（装机）**：首跑日志 4 行 `AttrStd 101 饱腹（上限） 数值封顶 500 -> 999（官方 500）`
+  等（无 104 行）+ 汇总行"覆盖 4/4 条"；进档后堆上限类增益可把面板上限推过 500（逼近 999）；
+  吃/睡觉等回复随新上限到顶；改 CapValue=2000 后下一轮日志重写为 2000（在场角色过图生效）；
+  关闭开关自动还原 500（在场角色过图后生效）；隐藏属性健康与 NPC 邻居等仍按官方 500 封顶；
+  存档无本 mod 写入痕迹。

@@ -6,7 +6,7 @@
 
 ## 一、这是干什么的
 
-把游戏里各类官方限制逐项放开的通用解锁合集。现有四条线：**角色线**——原版不少内容锁角色（爬山虎种子只有女大学生能发现、花瓶配方只有大学生剧情送、部分生存规划只刷给对应角色），本 mod 把这些限制放开让任何角色都能玩到全套；**交易线**——无人机交易买完货后货架自动重新上架（恢复官方旧版行为，官方现行是买掉后要等第二天才补货）；**探索线**——地图上每天只能去一次的探索点（现为科技公司）放开为每天不限次；**重生线**——死亡后的"大重生"机会（官方每档只有少数几次，用完就真结局）放开为基本不限次。每项都可单独关掉还原。
+把游戏里各类官方限制逐项放开的通用解锁合集。现有五条线：**角色线**——原版不少内容锁角色（爬山虎种子只有女大学生能发现、花瓶配方只有大学生剧情送、部分生存规划只刷给对应角色），本 mod 把这些限制放开让任何角色都能玩到全套；**交易线**——无人机交易买完货后货架自动重新上架（恢复官方旧版行为，官方现行是买掉后要等第二天才补货）；**探索线**——地图上每天只能去一次的探索点（现为科技公司）放开为每天不限次；**重生线**——死亡后的"大重生"机会（官方每档只有少数几次，用完就真结局）放开为基本不限次；**属性线**——饱腹/心态/精力/生命四条属性的"上限值"官方封顶 500，放开到最高可堆 999（可在配置里改成 500~9999 之间任意值）。每项都可单独关掉还原。
 
 ## 二、功能清单
 
@@ -30,9 +30,13 @@
 
 - 重生解锁：死亡后的"大重生"机会改为基本不限次（官方每档只有少数几次，用完就真结局、只能结算或重开）。开启期间游戏照常记录"已重生次数"（官方行为，mod 不额外写存档）；关闭开关后，已经重生超过官方上限的档会回到无剩余机会。小重生（回退 1/5 天）、信念点价格、血上限惩罚等其余重生规则照旧
 
+### 属性线（v1.12.0 新增）
+
+- 属性上限解锁：饱腹、心态、精力、生命四条主界面属性的"上限值"官方封顶 500，改为最高可堆到 CapValue 设的值（500~9999 之间任意整数，默认 999）。只解除封顶不白送数值——上限能堆多高仍靠游戏内加上限的规划/天赋/食物；当前值随新上限可超过 500。隐藏属性"健康"与 NPC 属性保持官方规则不动。运行中关闭开关：表立即还原，已在场的角色要过图/重进存档后回到官方 500（改小 CapValue 同理，过图后压回新封顶）
+
 ### 通用
 
-- 全部功能都有开关，关=还原官方行为；不改任何概率与数值平衡（交易解锁只改补货时机，不伪造货架内容——重抽由游戏官方逻辑完成；重生解锁只把"机会上限"的读取结果改大，已用计数仍由游戏官方代码记录）
+- 全部功能都有开关，关=还原官方行为；不改任何概率与数值平衡（交易解锁只改补货时机，不伪造货架内容——重抽由游戏官方逻辑完成；重生解锁只把"机会上限"的读取结果改大，已用计数仍由游戏官方代码记录；属性上限解锁只放高"上限的封顶"，不凭空加数值）
 
 ## 三、安全与还原
 
@@ -41,6 +45,7 @@
 - 交易线对存档的全部改动 = 删除一个游戏官方的货架快照键（合法存档状态，旧档本来就没有该键）；补货/重抽 100% 走游戏官方代码路径
 - 探索线零存档写入（开启期间连"今日已去过"标记都不会写）
 - 重生线零存档写入（只改"上限"的读取结果）；开启期间正常重生时游戏照常记"已用次数"，关闭后超上限的档回到官方无机会状态
+- 属性线零存档写入（纯内存表编辑）；官方若自抬上限到高于 CapValue，本开关取大不降
 - 已购/已学的规划与配方属于存档侧数据：关闭开关或卸载后这些保留不退，只影响之后的抽取与解锁
 
 ## 四、安装与卸载
@@ -67,10 +72,12 @@
 | Trade.UnlockTrade | true | 交易解锁：无人机交易每次买完，该交易点的货架下次打开时自动重新上架全新货物（官方旧版行为；官方现行是买掉后要等第二天才补货）。false=改回游戏原样。 |
 | Explore.UnlockDailyOnce | true | 探索解锁：地图上每天只能去一次的探索点（当前是科技公司）改为每天想去几次去几次。false=改回游戏原样。 |
 | Rebirth.UnlockChances | true | 重生解锁：死亡后的"大重生"机会改为基本不限次（官方每档只有少数几次，用完就真结局）。false=改回游戏原样。 |
+| Attribute.UnlockCap | true | 属性上限解锁：饱腹、心态、精力、生命四条属性的"上限值"官方封顶 500，改为最高可堆到 CapValue 设的值（只解除封顶不白送数值）。false=改回游戏原样（已在场的角色要过图重进后生效）。 |
+| Attribute.CapValue | 999 | 属性上限解锁的封顶值（500~9999）：四条属性的上限值最高能堆到多少。只在 UnlockCap 开启时生效；改小后已堆高的上限要过图重进后才会压回新封顶。 |
 
 ## 六、English
 
-**Unlock Hub** — Removes official restrictions: role-locked content (vine seeds, flower seeds, cross-role life plans, vase recipe) for every character, plus instant drone-trade shelf restock, unlimited daily-once map visits, and near-unlimited major-rebirth chances after death.
+**Unlock Hub** — Removes official restrictions: role-locked content (vine seeds, flower seeds, cross-role life plans, vase recipe) for every character, plus instant drone-trade shelf restock, unlimited daily-once map visits, near-unlimited major-rebirth chances after death, and attribute-max caps raised from 500 to a configurable 500–9999 (default 999).
 
 **Features**
 - Any character can discover vine (ivy) seeds when harvesting, plant vines and get the vine shield; the official defense-level gate for seed discovery is kept
@@ -81,13 +88,14 @@
 - **Trade Unlock (v1.8.0)**: after each drone-trade purchase the trading point's shelf restocks with fresh goods the next time you open it (the old official behavior; the current official build only partially restocks once per day). Casual-mode rare shelves are untouched
 - **Explore Unlock (v1.9.0)**: map points limited to one visit per day (currently the Tech Company) can be visited as many times as you like each day; the underlying "daily-once" restricted-point list is cleared, so points added to it by future official updates are freed as well. Per-trip costs and exposure rules are unchanged
 - **Rebirth Unlock (v1.11.0)**: the major-rebirth chance cap after death (officially only a few per save, exhausted = final game over) becomes effectively unlimited. The used-chance counter is still written by official game code as normal; after turning the switch off, saves that rebirthed past the official cap are back to zero chances. Minor rebirth (1/5-day rollback), faith prices and HP-max penalties are untouched
+- **Attribute Cap Unlock (v1.12.0)**: the official hard cap of 500 on the four HUD attribute maximums (satiety, morale, stamina, vitality) is raised to a configurable target (CapValue, 500–9999, default 999). This only lifts the ceiling — you still need in-game plans/talents/food to stack the maximums up; current values can then follow past 500. The hidden "health" stat and NPC attributes keep official caps. Turning the switch off restores the table immediately (characters already in-scene revert on the next map entry; lowering CapValue applies the new cap the same way)
 - Every feature has its own switch; off = vanilla behavior
 
 **Requirements / Install / Uninstall**
 Survival Log (Steam AppID 4164790) + BepInEx 6 IL2CPP. Install the Full package (bundled BepInEx 6 base — extract into the game root, `steamapps\common\Survival Log`) or the PluginOnly package (drop `SurvivalLog.UnlockHub.dll` into `BepInEx\plugins\` if BepInEx 6 is already installed). Upgrading from the old RoleUnlock build: delete the old `SurvivalLog.RoleUnlock.dll` first. Uninstall = delete the DLL; the game returns to vanilla restrictions (plans and recipes you already own stay in your save).
 
 **Configuration**
-Config file: `BepInEx\config\com.local.survivallog.unlockhub.cfg`. Eight independent switches (vine, flower seeds, defense recipes, plan sharing, vase recipe, trade unlock, daily-once explore, rebirth chances) plus a master switch; changes rewrite or restore automatically without a restart.
+Config file: `BepInEx\config\com.local.survivallog.unlockhub.cfg`. Nine independent switches (vine, flower seeds, defense recipes, plan sharing, vase recipe, trade unlock, daily-once explore, rebirth chances, attribute cap) plus the attribute-cap value (500–9999) and a master switch; changes rewrite or restore automatically without a restart.
 
 **Credits**
 By Night (Douyin 166660371). Free for personal use. Do NOT re-upload or redistribute anywhere without permission.
