@@ -44,15 +44,21 @@ namespace SurvivalLog.UnlockHub;
 ///    剩余=max(0,上限−存档已用次数)）。该 getter 有进程级静态缓存（首读后永不回读表）→ 表编辑
 ///    不可靠，走 postfix 改返回值 999；已用次数照常由官方代码写入存档（知情：关开关后超上限的
 ///    档回到无机会）。实现见 RebirthChanceUnlocker.cs。
-/// 7) 属性上限解锁（2026-11-10 起）：属性"上限值"的封顶=Config_AttributeStandard 行 101~105
-///    （MaxSatiety~MaxVitality，Des_Local"饱腹（上限）"等）的 Max=500——AttributeComponent
-///    .OnCreate 首建 AttrDict 时快照进 Attr.Max，GetTotalValue 读值时按 [Min,Max] 钳制（上限值
-///    本身超 500 一律读成 500，吃/回/增益全链路共用）。本 mod 把其中四行（101/102/103/105=主界面
-///    饱腹/心态/精力/生命，RA_Open 反汇编实证 HUD 只插 1/2/3/5）的 Max 500→可配目标（cfg
-///    Attribute.CapValue，区间 500~9999 默认 999）→ 上限可堆到目标值（不白送数值，只解除封顶）。
-///    104 健康=隐藏属性（无 HUD 条但 Buff 真实运作），作者定案不动。时机：改表落主菜单阶段
-///    （Ticker 首轮），早于进档创建组件；运行中关闭=表立即还原，已在场角色的 Attr.Max 缓存要
-///    过图重进后回官方 500。
+    /// 7) 属性上限解锁（2026-11-10 起）：属性"上限值"的封顶=Config_AttributeStandard 行 101~105
+    ///    （MaxSatiety~MaxVitality，Des_Local"饱腹（上限）"等）的 Max=500——AttributeComponent
+    ///    .OnCreate 首建 AttrDict 时快照进 Attr.Max，GetTotalValue 读值时按 [Min,Max] 钳制（上限值
+    ///    本身超 500 一律读成 500，吃/回/增益全链路共用）。本 mod 把其中四行（101/102/103/105=主界面
+    ///    饱腹/心态/精力/生命，RA_Open 反汇编实证 HUD 只插 1/2/3/5）的 Max 500→可配目标（cfg
+    ///    Attribute.CapValue，区间 500~9999 默认 999）→ 上限可堆到目标值（不白送数值，只解除封顶）。
+    ///    104 健康=隐藏属性（无 HUD 条但 Buff 真实运作），作者定案不动。时机：改表落主菜单阶段
+    ///    （Ticker 首轮），早于进档创建组件；运行中关闭=表立即还原，已在场角色的 Attr.Max 缓存要
+    ///    过图重进后回官方 500。
+    ///    v1.12.1 补第二道锁：上限增益 buff 的 MaxLayerCount 叠层锁——听音乐/浇水/看书/读书/游戏机/
+    ///    电视全部日常动作加的都是同一批"上限"buff（11~19，每层+2~10，锁 200 层），塑钢哑铃走
+    ///    11011 体能提升（锁 10 层）；PlayBuff 叠层满即早退零效果（0x308892F），旧档"心态 500"正是
+    ///    叠满+400 所致。全部同步放开→CapValue（跳过 14 健康同作者定案）——总上限只留
+    ///    AttributeStandard.Max（CapValue）一道，全部来源叠加后由 GetTotalValue 统一钳制；天赋/
+    ///    规划是档位语义（各 1 层）无锁可解不碰；PlayBuff 实时读表，满层旧档立即继续生效。
 ///
 /// 表线（1~3、5、7）保持纯内存表编辑（零 Harmony——il2cpp 泛型 List 参数补丁会静默失败）；
 /// 交易解锁（4）与重生解锁（6）是两条 Harmony 补丁线（套件有 EndlessGuard/CabinetEverywhere
@@ -69,7 +75,7 @@ public sealed class UnlockHubPlugin : BasePlugin
     public const string Guid = "com.local.survivallog.unlockhub";
     public const string Name = "UnlockHub";
     // 跟随套件 version.json，发版时与套件同步（版本号由作者定义）
-    public const string Version = "1.12.0";
+    public const string Version = "1.12.1";
 
     internal static ManualLogSource Log;
 
@@ -115,7 +121,7 @@ public sealed class UnlockHubPlugin : BasePlugin
         UnlockChances = Config.Bind("Rebirth", "UnlockChances", true,
             "重生解锁：死亡后的\"大重生\"机会改为基本不限次（官方每档只有少数几次，用完就真结局）。注意：开着期间重生的次数会照常记进存档，关掉后超过官方上限的档会回到无机会。false=改回游戏原样。");
         UnlockCap = Config.Bind("Attribute", "UnlockCap", true,
-            "属性上限解锁：饱腹、心态、精力、生命这四条属性的\"上限值\"官方封顶 500，改为最高可堆到 CapValue 设的值（只解除封顶，不白送数值；想堆满还得靠游戏里加上限的规划/天赋/食物）。false=改回游戏原样（已在场的角色要过图重进后生效）。");
+            "属性上限解锁：饱腹、心态、精力、生命这四条属性的\"上限值\"官方封顶 500，改为最高可堆到 CapValue 设的值（只解除封顶，不白送数值）。所有加上限的玩法同步放开自己的叠层锁（听音乐/浇水/看书/读书等日常动作的 200 层池、塑钢哑铃的 10 层）——想堆多高全看 CapValue 这一道总上限；旧档已叠满的当下就继续生效。false=改回游戏原样（已在场角色的封顶要过图重进后回 500；buff 叠层立即还原）。");
         CapValue = Config.Bind("Attribute", "CapValue", 999,
             new ConfigDescription("属性上限解锁的封顶值（500~9999）：四条属性的上限值最高能堆到多少，默认 999。只在 UnlockCap 开启时生效；改小后已堆高的上限要过图重进后才会压回新封顶。",
                 new AcceptableValueRange<int>(RoleTable.AttrCapMin, RoleTable.AttrCapMax)));
@@ -152,7 +158,7 @@ public sealed class UnlockHubPlugin : BasePlugin
         var go = new GameObject("UnlockHub.Ticker");
         Object.DontDestroyOnLoad(go);
         go.AddComponent<RoleTicker>();
-        Log.LogInfo("[UnlockHub] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）+ 探索解锁（每日一次探索点不限次）+ 重生解锁（大重生机会基本不限次）+ 属性上限解锁（饱腹/心态/精力/生命封顶 500→可配 500~9999）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
+        Log.LogInfo("[UnlockHub] loaded：藤蔓种子全角色可发现 + 防御配方四角色互通 + 生存规划/花瓶配方互通 + 交易解锁（货架买后即刷）+ 探索解锁（每日一次探索点不限次）+ 重生解锁（大重生机会基本不限次）+ 属性上限解锁（饱腹/心态/精力/生命封顶 500→可配 500~9999，含上限增益 buff 叠层 200 同步放开）（表线纯内存编辑，全部功能可在配置关闭还原；General.Enabled=false 全停）");
         SurvivalLog.ModShared.WelcomeTip.Install(Log);
     }
 }
@@ -393,6 +399,22 @@ internal static class RoleTable
     private const int AttrCapOfficial = 500; // 首跑核对基线（2026-11-05 表：四行全 500）
     private static readonly Dictionary<int, int> OrigAttrCaps = new();
 
+    // 上限类增益 buff（2026-11-11 v1.12.1）：听音乐/浇水/看书/游戏机/电视等全部日常娱乐动作加的都是
+    // 同一批"上限"buff（Effect 表 ItemEndBuff02/EAddBuff），每层+2~10、MaxLayerCount=200——旧档堆满
+    // 200 层后 BuffComponent.PlayBuff 叠层分支（0x308892F 反汇编：新层数==Max 即早退，不触发效果器）
+    // 一次听音乐/浇水零效果，200 层正是封顶 500 的第二道锁（初始+400≈500）。11 饱腹/12+16~19 心态/
+    // 13 精力/15 生命；14 健康上限与 104 同作者定案不动；300110/300310 等规划 buff 是档位语义（各 1 层）
+    // 不在集合内自然不碰；塑钢哑铃的 11011 体能提升是同款锁（官方 10 层=道具描述"最多+20"）一并放开。
+    // PlayBuff 的 [rdi+94h] 每次实时读表 → 改表即时生效（与 Attr.Max 的 OnCreate
+    // 快照不同，满层的旧档无需过图立刻可继续叠）。
+    private static readonly HashSet<int> AttrCapBuffIds = new() { 11, 12, 13, 15, 16, 17, 18, 19, 11011 };
+    // 官方叠层基线（2026-11-05 表）：11~19=200 通用池；11011 体能提升（塑钢哑铃，道具描述"最多+20"）
+    // =10。11011 与 200 池同款锁（满层后哑铃练再多零效果），v1.12.1 一并放开——总上限仍只有
+    // AttributeStandard.Max（CapValue）一道，全部来源叠加后由 GetTotalValue 统一钳制。
+    private static readonly Dictionary<int, int> AttrBuffLayerOfficial = new()
+        { { 11, 200 }, { 12, 200 }, { 13, 200 }, { 15, 200 }, { 16, 200 }, { 17, 200 }, { 18, 200 }, { 19, 200 }, { 11011, 10 } };
+    private static readonly Dictionary<int, int> OrigBuffLayers = new();
+
     /// <summary>四条上限行（101/102/103/105）的 Max 500→target（target&lt;=0=还原官方值）。
     /// 返回 false=表未就绪；表就绪但目标行全缺=游戏无此结构，不阻断其他功能。</summary>
     private static bool ApplyAttrCap(GameCore.HotUpdate.ConfigManager cm, int target,
@@ -442,6 +464,51 @@ internal static class RoleTable
         if (touched > 0 && (listAll || verbose))
             lines.Add($"AttrStd 上限解锁：{(unlockCap ? $"封顶 {AttrCapOfficial} -> {target}" : "已还原官方封顶")} 覆盖 {touched}/4 条" +
                       (baselineOk ? "" : "（⚠ 有条目官方原值≠500，疑似游戏更新改表，请核对上方清单）"));
+
+        // ---- Config_Buff：上限类增益 buff 叠层 200→target（同一开关；表未就绪=整轮未就绪重试）----
+        Il2CppSystem.Collections.Generic.Dictionary<int, GameCore.HotUpdate.Config_Buff> bdict;
+        try { bdict = cm._Config_Buff_Dict; } catch { bdict = null; }
+        if (bdict == null || bdict.Count == 0) return false;
+
+        int touchedBuff = 0; bool baselineBuff = true;
+        try
+        {
+            foreach (var kv in bdict)
+            {
+                int id = kv.Key;
+                if (!AttrCapBuffIds.Contains(id)) continue;
+                var row = kv.Value;
+                if (row == null) continue;
+
+                int layers; string name;
+                try { layers = row.MaxLayerCount; name = row.Name_Local ?? row.Name ?? ""; } catch { continue; }
+
+                if (!OrigBuffLayers.TryGetValue(id, out var origL))
+                {
+                    origL = layers;
+                    OrigBuffLayers[id] = origL;
+                }
+                if (!AttrBuffLayerOfficial.TryGetValue(id, out var officialL) || origL != officialL)
+                    baselineBuff = false;
+
+                int wantL = unlockCap ? Math.Max(origL, target) : origL;
+                if (layers != wantL)
+                {
+                    row.MaxLayerCount = wantL;
+                    lines.Add(unlockCap
+                        ? $"Buff {id} {name} 叠层上限 {layers} -> {wantL}（官方 {origL}）"
+                        : $"Buff {id} {name} 叠层上限 {layers} -> 还原官方 {origL}");
+                }
+                else if (verbose || listAll)
+                    lines.Add($"Buff {id} {name} 叠层上限 = {layers}（官方 {origL}）");
+                touchedBuff++;
+            }
+        }
+        catch { }
+
+        if (touchedBuff > 0 && (listAll || verbose))
+            lines.Add($"Buff 上限增益叠层：{(unlockCap ? $"官方基线 -> {target}" : "已还原官方基线")} 覆盖 {touchedBuff}/9 条（11~19 层锁 200 / 11011 哑铃层锁 10）" +
+                      (baselineBuff ? "" : "（⚠ 有条目官方原值与基线不符，疑似游戏更新改表，请核对上方清单）"));
         return true;
     }
 
