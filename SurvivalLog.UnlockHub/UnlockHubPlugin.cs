@@ -75,7 +75,7 @@ public sealed class UnlockHubPlugin : BasePlugin
     public const string Guid = "com.local.survivallog.unlockhub";
     public const string Name = "UnlockHub";
     // 跟随套件 version.json，发版时与套件同步（版本号由作者定义）
-    public const string Version = "1.12.1";
+    public const string Version = "1.12.2";
 
     internal static ManualLogSource Log;
 
