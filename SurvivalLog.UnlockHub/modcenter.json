@@ -1,0 +1,153 @@
+{
+  "mcSpec": 2,
+  "id": "com.local.survivallog.unlockhub",
+  "display": "解锁中心",
+  "en": "UnlockHub",
+  "summary": "通用解锁合集：角色专属内容逐项解锁 + 交易解锁（货架买后即刷）+ 探索解锁（每日一次探索点不限次）+ 重生解锁（大重生机会基本不限次）+ 属性上限解锁（饱腹/心态/精力/生命封顶 500→可调）；关闭即还原官方门槛。v1.8.0 前名「角色解锁 RoleUnlock」。",
+  "usage": {
+    "intro": "官方限制逐项放开：角色专属内容（藤蔓 / 花种子 / 规划 / 花瓶）全角色可用、交易货架买完即补货、每日一次的探索点不限次去，死亡后的「大重生」机会基本不限次，饱腹/心态/精力/生命四条属性的上限封顶可堆到 9999。",
+    "sections": [
+      {
+        "heading": "怎么用",
+        "bullets": [
+          "全部默认开，装好即生效，无需设置；每项独立开关，关 = 还原官方行为",
+          "藤蔓 / 花种子：任何角色收庄稼都可能发现；规划互通：46 项功能类专属规划全角色可买（已购不退）",
+          "交易解锁：买完后下次打开该交易点，货架重新上满全新货；探索解锁：科技公司等「每日一次」探索点随便去",
+          "重生解锁：死亡后的大重生机会基本不限次；属性上限解锁：四条属性封顶 500→最高 9999（默认 999，面板可调），只解除封顶不白送数值"
+        ]
+      },
+      {
+        "heading": "提示",
+        "bullets": [
+          "已购规划、已学配方存在存档里，关开关不会退；探索解锁开启期间零存档写入",
+          "防御配方互通仍按防御等级解锁，不是白送；房屋扩建类规划仍绑定角色（官方设定）",
+          "重生次数照常记进存档，关掉后超官方上限的档回到无机会；属性上限对已在场角色要过图重进后生效（新档即时）"
+        ]
+      }
+    ]
+  },
+  "groups": [
+    {
+      "title": "藤蔓与花种子",
+      "order": 1,
+      "items": [
+        {
+          "key": "Vine:UnlockVine",
+          "label": "解锁藤蔓（爬山虎）",
+          "badge": "now",
+          "type": "bool",
+          "def": true,
+          "order": 10
+        },
+        {
+          "key": "Vine:UnlockFlowerSeeds",
+          "label": "解锁花种子",
+          "badge": "now",
+          "type": "bool",
+          "def": true,
+          "order": 20
+        }
+      ]
+    },
+    {
+      "title": "配方与规划",
+      "order": 2,
+      "items": [
+        {
+          "key": "Defense:ShareDefenseRecipes",
+          "label": "解锁防御系角色专属配方（全角色共享）",
+          "badge": "now",
+          "type": "bool",
+          "def": true,
+          "order": 10
+        },
+        {
+          "key": "Plan:ClearPool",
+          "label": "解锁角色专属生存规划（46 项功能类）",
+          "badge": "now",
+          "type": "bool",
+          "def": true,
+          "order": 20
+        },
+        {
+          "key": "Plan:VaseRecipe",
+          "label": "解锁花瓶配方",
+          "badge": "now",
+          "type": "bool",
+          "def": true,
+          "order": 30
+        }
+      ]
+    },
+    {
+      "title": "交易解锁",
+      "order": 3,
+      "items": [
+        {
+          "key": "Trade:UnlockTrade",
+          "label": "交易解锁（货架买完即刷新上架）",
+          "badge": "now",
+          "type": "bool",
+          "def": true,
+          "order": 10
+        }
+      ]
+    },
+    {
+      "title": "探索解锁",
+      "order": 4,
+      "items": [
+        {
+          "key": "Explore:UnlockDailyOnce",
+          "label": "探索解锁（每日一次探索点不限次）",
+          "badge": "now",
+          "type": "bool",
+          "def": true,
+          "order": 10
+        }
+      ]
+    },
+    {
+      "title": "重生解锁",
+      "order": 5,
+      "items": [
+        {
+          "key": "Rebirth:UnlockChances",
+          "label": "重生解锁（大重生机会基本不限次）",
+          "badge": "now",
+          "type": "bool",
+          "def": true,
+          "order": 10,
+          "note": "开启期间重生的次数照常记进存档，关掉后超官方上限的档回到无机会"
+        }
+      ]
+    },
+    {
+      "title": "属性上限解锁",
+      "order": 6,
+      "items": [
+        {
+          "key": "Attribute:UnlockCap",
+          "label": "属性上限解锁（饱腹/心态/精力/生命）",
+          "badge": "reload",
+          "type": "bool",
+          "def": true,
+          "order": 10,
+          "note": "只解除封顶不白送数值；已在场角色过图重进后生效（新档即时）"
+        },
+        {
+          "key": "Attribute:CapValue",
+          "label": "属性封顶值",
+          "badge": "reload",
+          "type": "int",
+          "def": 999,
+          "min": 500,
+          "max": 9999,
+          "step": 1,
+          "order": 20,
+          "note": "只在属性上限解锁开启时生效；改小后已堆高的上限要过图重进才压回"
+        }
+      ]
+    }
+  ]
+}
