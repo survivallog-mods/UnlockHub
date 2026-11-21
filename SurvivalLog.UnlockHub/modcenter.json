@@ -1,5 +1,6 @@
 {
   "mcSpec": 2,
+  "suite": true,
   "id": "com.local.survivallog.unlockhub",
   "display": "解锁中心",
   "en": "UnlockHub",
